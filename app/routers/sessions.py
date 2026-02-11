@@ -17,6 +17,7 @@ from app.services.session_service import (
     get_all_sessions,
     get_model_display_names,
     get_session_detail,
+    group_sessions_by_project,
     search_sessions,
 )
 
@@ -40,9 +41,12 @@ async def session_list(
     page_sessions = sessions[start:end]
     total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
 
+    grouped = group_sessions_by_project(page_sessions)
+
     context = {
         "request": request,
         "sessions": page_sessions,
+        "grouped_sessions": grouped,
         "page_title": "세션",
         "query": q,
         "page": page,

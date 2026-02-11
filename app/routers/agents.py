@@ -7,6 +7,7 @@ from app.config import now_kst
 from app.services.agent_service import (
     get_agent_analytics,
     get_agent_definitions,
+    get_agent_detail,
     get_all_subagent_activities,
 )
 
@@ -50,3 +51,20 @@ async def agents_view(request: Request):
     if request.headers.get("HX-Request"):
         return templates.TemplateResponse("partials/agents_content.html", context)
     return templates.TemplateResponse("agents.html", context)
+
+
+@router.get("/{agent_name}")
+async def agent_detail_view(request: Request, agent_name: str):
+    defn, stats, activities, project_dist = get_agent_detail(agent_name)
+
+    context = {
+        "request": request,
+        "page_title": f"에이전트: {agent_name}",
+        "agent_name": agent_name,
+        "defn": defn,
+        "stats": stats,
+        "activities": activities[:50],
+        "project_dist": project_dist,
+        "updated_at": now_kst(),
+    }
+    return templates.TemplateResponse("agent_detail.html", context)

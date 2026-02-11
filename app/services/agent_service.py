@@ -228,6 +228,26 @@ def get_agent_analytics(projects_dir: str | None = None) -> list[AgentStats]:
     return results
 
 
+def get_agent_detail(
+    agent_name: str,
+) -> tuple[AgentDefinition | None, AgentStats | None, list[SubagentActivity], dict[str, int]]:
+    """Return (definition, stats, activities, project_distribution) for an agent."""
+    definitions = get_agent_definitions()
+    defn = next((d for d in definitions if d.name == agent_name), None)
+
+    analytics = get_agent_analytics()
+    stats = next((a for a in analytics if a.agent_name == agent_name), None)
+
+    all_activities = get_all_subagent_activities()
+    activities = [a for a in all_activities if _infer_agent_type(a.agent_id) == agent_name]
+
+    project_dist: dict[str, int] = {}
+    for act in activities:
+        project_dist[act.project_name] = project_dist.get(act.project_name, 0) + 1
+
+    return defn, stats, activities, project_dist
+
+
 def _infer_agent_type(agent_id: str) -> str:
     clean = agent_id.replace("agent-", "")
     if "prompt_suggestion" in clean:

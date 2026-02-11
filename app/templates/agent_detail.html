@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Header -->
+<div class="mb-6">
+  <a href="/agents" class="text-sm text-gray-400 hover:text-white">&larr; 에이전트 목록</a>
+  <h1 class="text-2xl font-bold mt-2">{{ agent_name }}</h1>
+  {% if defn %}
+  <div class="text-sm text-gray-400 mt-1">{{ defn.description }}</div>
+  {% endif %}
+</div>
+
+{% if defn or stats %}
+<!-- Definition Info -->
+{% if defn %}
+<div class="bg-gray-800 rounded-lg p-5 border border-gray-700 mb-6">
+  <div class="flex items-center gap-3 mb-3">
+    <span class="text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded">{{ defn.model or "default" }}</span>
+    {% if defn.tools %}
+    <span class="text-xs text-gray-500">{{ defn.tools | length }}개 도구 허용</span>
+    {% endif %}
+  </div>
+  {% if defn.tools %}
+  <div class="flex flex-wrap gap-1">
+    {% for tool in defn.tools %}
+    <span class="text-xs px-2 py-0.5 bg-gray-700/50 text-gray-400 rounded">{{ tool }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Stats Cards -->
+{% if stats %}
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+  <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <div class="text-xs text-gray-400">호출 횟수</div>
+    <div class="text-xl font-bold text-blue-400">{{ "{:,}".format(stats.invocation_count) }}</div>
+  </div>
+  <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <div class="text-xs text-gray-400">입력 토큰</div>
+    <div class="text-xl font-bold text-green-400">{{ "{:,}".format(stats.total_input_tokens) }}</div>
+  </div>
+  <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <div class="text-xs text-gray-400">출력 토큰</div>
+    <div class="text-xl font-bold text-orange-400">{{ "{:,}".format(stats.total_output_tokens) }}</div>
+  </div>
+  <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <div class="text-xs text-gray-400">프로젝트</div>
+    <div class="text-xl font-bold text-purple-400">{{ project_dist | length }}</div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+  {% if stats.tool_counts %}
+  <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+    <h2 class="text-lg font-semibold mb-4">도구 사용 빈도</h2>
+    <div class="chart-container" style="height: 250px;">
+      <canvas id="toolChart"></canvas>
+    </div>
+  </div>
+  {% endif %}
+  {% if project_dist %}
+  <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+    <h2 class="text-lg font-semibold mb-4">프로젝트별 호출 분포</h2>
+    <div class="chart-container" style="height: 250px;">
+      <canvas id="projectChart"></canvas>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Activity History -->
+{% if activities %}
+<div class="mb-4">
+  <h2 class="text-lg font-semibold mb-4">최근 호출 이력</h2>
+  <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-700/50">
+        <tr>
+          <th class="text-left px-4 py-2 text-gray-400 font-medium">프로젝트</th>
+          <th class="text-left px-4 py-2 text-gray-400 font-medium">세션</th>
+          <th class="text-right px-4 py-2 text-gray-400 font-medium">메시지</th>
+          <th class="text-right px-4 py-2 text-gray-400 font-medium">토큰</th>
+          <th class="text-left px-4 py-2 text-gray-400 font-medium">도구</th>
+          <th class="text-right px-4 py-2 text-gray-400 font-medium">시간</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for act in activities %}
+        <tr class="border-t border-gray-700/50 hover:bg-gray-750">
+          <td class="px-4 py-2 text-blue-400">
+            <a href="/projects/{{ act.project_name | urlencode }}" class="hover:underline">{{ act.project_name }}</a>
+          </td>
+          <td class="px-4 py-2 font-mono text-xs text-gray-400">{{ act.session_id[:12] }}...</td>
+          <td class="px-4 py-2 text-right text-gray-300">{{ act.message_count }}</td>
+          <td class="px-4 py-2 text-right text-gray-300">{{ "{:,}".format(act.total_input_tokens + act.total_output_tokens) }}</td>
+          <td class="px-4 py-2">
+            <div class="flex flex-wrap gap-0.5">
+              {% for tool in act.tools_used[:5] %}
+              <span class="text-xs px-1 bg-gray-700 text-gray-400 rounded">{{ tool }}</span>
+              {% endfor %}
+              {% if act.tools_used | length > 5 %}
+              <span class="text-xs text-gray-500">+{{ act.tools_used | length - 5 }}</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="px-4 py-2 text-right text-xs text-gray-500">{{ act.last_timestamp | kst }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="text-center text-gray-400 py-20">
+  <h2 class="text-xl mb-2">에이전트 정보가 없습니다</h2>
+  <a href="/agents" class="text-blue-400 hover:underline">에이전트 목록으로</a>
+</div>
+{% endif %}
+
+{% if stats %}
+<script>
+(function() {
+  {% if stats.tool_counts %}
+  const toolData = {{ stats.tool_counts | tojson }};
+  createHorizontalBarChart('toolChart', {
+    labels: toolData.map(d => d[0]),
+    datasets: [{
+      label: '사용 횟수',
+      data: toolData.map(d => d[1]),
+      backgroundColor: '#8b5cf6',
+      borderRadius: 4,
+    }],
+  });
+  {% endif %}
+
+  {% if project_dist %}
+  const projectData = {{ project_dist | tojson }};
+  const entries = Object.entries(projectData).sort((a, b) => b[1] - a[1]);
+  const colors = [
+    '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6',
+    '#ec4899','#06b6d4','#84cc16','#f97316','#6366f1'
+  ];
+  createDoughnutChart('projectChart', {
+    labels: entries.map(d => d[0]),
+    data: entries.map(d => d[1]),
+    colors: colors.slice(0, entries.length),
+  });
+  {% endif %}
+})();
+</script>
+{% endif %}
+{% endblock %}

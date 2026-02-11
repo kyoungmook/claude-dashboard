@@ -39,7 +39,8 @@
     {% for a in analytics if a.agent_name == defn.name %}
       {% set stats = a %}
     {% endfor %}
-    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-500 transition-colors">
+    <a href="/agents/{{ defn.name | urlencode }}"
+       class="block bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-500 transition-colors">
       <div class="flex items-center justify-between mb-2">
         <h3 class="font-semibold text-blue-400">{{ defn.name }}</h3>
         <span class="text-xs px-2 py-0.5 bg-gray-700 text-gray-300 rounded">{{ defn.model or "default" }}</span>
@@ -50,7 +51,7 @@
         <span class="text-xs px-1.5 py-0.5 bg-gray-700/50 text-gray-400 rounded">{{ tool }}</span>
         {% endfor %}
       </div>
-    </div>
+    </a>
     {% endfor %}
   </div>
 </div>

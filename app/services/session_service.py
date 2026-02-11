@@ -180,6 +180,20 @@ def find_session_file(session_id: str) -> Path | None:
     return None
 
 
+def get_sessions_by_project(project_name: str) -> list[SessionInfo]:
+    all_sessions = get_all_sessions()
+    return [s for s in all_sessions if s.project_name == project_name]
+
+
+def group_sessions_by_project(
+    sessions: list[SessionInfo],
+) -> list[tuple[str, list[SessionInfo]]]:
+    groups: dict[str, list[SessionInfo]] = {}
+    for s in sessions:
+        groups.setdefault(s.project_name, []).append(s)
+    return list(groups.items())
+
+
 def search_sessions(query: str) -> list[SessionInfo]:
     all_sessions = get_all_sessions()
     query_lower = query.lower()

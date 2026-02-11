@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections import Counter
+
 from app.config import get_model_display_name, get_model_pricing
-from app.models.schemas import ProjectStats, TokenUsage
+from app.models.schemas import ProjectStats, SessionInfo, TokenUsage
 from app.services.cache import ttl_cache
 from app.services.session_service import get_all_sessions
 
@@ -75,3 +77,30 @@ def get_project_stats() -> list[ProjectStats]:
 
     results.sort(key=lambda p: p.last_activity, reverse=True)
     return results
+
+
+def get_project_detail(
+    project_name: str,
+) -> tuple[ProjectStats | None, list[SessionInfo], list[tuple[str, int]], list[tuple[str, int]]]:
+    """Return (project_stats, sessions, tool_frequency, daily_counts) for a project."""
+    projects = get_project_stats()
+    stats = next((p for p in projects if p.project_name == project_name), None)
+    if stats is None:
+        return None, [], [], []
+
+    all_sessions = get_all_sessions()
+    sessions = [s for s in all_sessions if s.project_name == project_name]
+
+    tool_counter: Counter[str] = Counter()
+    daily_counter: Counter[str] = Counter()
+    for s in sessions:
+        for name in s.tool_names:
+            tool_counter[name] += 1
+        if s.first_timestamp:
+            day = s.first_timestamp[:10]
+            daily_counter[day] += 1
+
+    tool_freq = tool_counter.most_common(20)
+    daily_counts = sorted(daily_counter.items())
+
+    return stats, sessions, tool_freq, daily_counts

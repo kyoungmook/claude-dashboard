@@ -9,7 +9,8 @@
 <!-- Project Cards -->
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
   {% for p in projects %}
-  <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-gray-500 transition-colors">
+  <a href="/projects/{{ p.project_name | urlencode }}"
+     class="block bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-gray-500 transition-colors">
     <div class="flex items-start justify-between mb-3">
       <div>
         <h3 class="font-semibold text-blue-400 text-lg">{{ p.project_name }}</h3>
@@ -43,7 +44,7 @@
       출력: {{ "{:,}".format(p.total_usage.output_tokens) }} 토큰
       &middot; 최근: {{ p.last_activity | kst }}
     </div>
-  </div>
+  </a>
   {% endfor %}
 </div>
 

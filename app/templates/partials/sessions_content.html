@@ -3,34 +3,44 @@
   <span class="text-xs text-gray-500">갱신: {{ updated_at }}</span>
 </div>
 
-<!-- Session List -->
-<div class="space-y-3">
-  {% for s in sessions %}
-  <a href="/sessions/{{ s.session_id }}"
-     class="block bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-500 transition-colors">
-    <div class="flex items-start justify-between">
-      <div class="flex-1">
-        <div class="flex items-center gap-2 mb-1">
-          <span class="font-semibold text-blue-400">{{ s.project_name }}</span>
-          {% if s.git_branch %}
-          <span class="text-xs px-2 py-0.5 bg-gray-700 rounded text-gray-300">{{ s.git_branch }}</span>
-          {% endif %}
-        </div>
-        <div class="text-xs text-gray-400">
-          {{ s.session_id[:12] }}...
-          &middot; {{ s.first_timestamp | kst }}
-          {% if s.models_used %}
-          &middot; {{ get_model_display_names(s.models_used) | join(', ') }}
-          {% endif %}
-        </div>
-      </div>
-      <div class="text-right text-sm">
-        <div class="text-gray-300">{{ s.message_count }}개 메시지</div>
-        <div class="text-gray-400 text-xs">{{ s.tool_calls_count }}회 도구</div>
-        <div class="text-orange-400 text-xs">{{ "{:,}".format(s.total_usage.output_tokens) }} 출력</div>
-      </div>
+<!-- Grouped Session List -->
+<div class="space-y-6">
+  {% for project_name, project_sessions in grouped_sessions %}
+  <div>
+    <div class="flex items-center gap-2 mb-2">
+      <a href="/projects/{{ project_name | urlencode }}"
+         class="text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors">{{ project_name }}</a>
+      <span class="text-xs text-gray-500">{{ project_sessions | length }}개 세션</span>
     </div>
-  </a>
+    <div class="space-y-2 ml-3 border-l-2 border-gray-700 pl-4">
+      {% for s in project_sessions %}
+      <a href="/sessions/{{ s.session_id }}"
+         class="block bg-gray-800 rounded-lg p-3 border border-gray-700 hover:border-gray-500 transition-colors">
+        <div class="flex items-start justify-between">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-0.5">
+              {% if s.git_branch %}
+              <span class="text-xs px-2 py-0.5 bg-gray-700 rounded text-gray-300">{{ s.git_branch }}</span>
+              {% endif %}
+              <span class="text-xs text-gray-400">{{ s.session_id[:12] }}...</span>
+              <span class="text-xs text-gray-500">{{ s.first_timestamp | kst }}</span>
+            </div>
+            <div class="text-xs text-gray-400 mt-0.5">
+              {% if s.models_used %}
+              {{ get_model_display_names(s.models_used) | join(', ') }}
+              {% endif %}
+            </div>
+          </div>
+          <div class="text-right text-sm flex-shrink-0 ml-4">
+            <div class="text-gray-300">{{ s.message_count }}개 메시지</div>
+            <div class="text-gray-400 text-xs">{{ s.tool_calls_count }}회 도구</div>
+            <div class="text-orange-400 text-xs">{{ "{:,}".format(s.total_usage.output_tokens) }} 출력</div>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
   {% else %}
   <div class="text-center text-gray-400 py-12">세션을 찾을 수 없습니다.</div>
   {% endfor %}
