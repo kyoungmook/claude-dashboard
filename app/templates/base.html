@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page_title }} - Claude Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="/static/js/charts.js"></script>
+  <style>
+    body { background-color: #111827; color: #e5e7eb; }
+    .chart-container { position: relative; height: 300px; }
+    .htmx-request .refresh-indicator { opacity: 1; }
+    .refresh-indicator { opacity: 0; transition: opacity 0.2s; }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-900">
+  {% include "components/nav.html" %}
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>
+    /* Destroy Chart.js instances inside swapped element to prevent memory leaks */
+    document.body.addEventListener('htmx:beforeSwap', function(evt) {
+      const target = evt.detail.target;
+      if (target) {
+        target.querySelectorAll('canvas').forEach(function(canvas) {
+          var chart = Chart.getChart(canvas);
+          if (chart) chart.destroy();
+        });
+      }
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

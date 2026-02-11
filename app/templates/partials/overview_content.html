@@ -1,0 +1,134 @@
+{% from "components/stats_card.html" import stat_card %}
+
+<!-- Summary Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+  {{ stat_card("총 세션", stats.total_sessions | string, color="blue") }}
+  {{ stat_card("총 메시지", "{:,}".format(stats.total_messages), subtitle="세션당 평균 " ~ stats.avg_messages_per_session ~ "개", color="green") }}
+  {{ stat_card("도구 호출", "{:,}".format(stats.total_tool_calls), color="purple") }}
+  {{ stat_card("총 비용", "$" ~ "%.2f" | format(stats.total_cost_usd), color="orange") }}
+</div>
+
+<!-- Highlights Row -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+  <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
+    <div class="text-xs text-gray-500 mb-1">사용 시작일</div>
+    <div class="text-lg font-bold text-blue-400">{{ stats.first_session_date | kst }}</div>
+    <div class="text-xs text-gray-500 mt-1">{{ stats.active_days }}일 활동</div>
+  </div>
+  <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
+    <div class="text-xs text-gray-500 mb-1">최장 세션</div>
+    <div class="text-lg font-bold text-yellow-400">{{ stats.longest_session.duration_hours }}시간</div>
+    <div class="text-xs text-gray-500 mt-1">{{ stats.longest_session.message_count }}개 메시지</div>
+  </div>
+  <div class="bg-gray-800 rounded-lg p-5 border border-gray-700">
+    <div class="text-xs text-gray-500 mb-1">세션당 평균 비용</div>
+    <div class="text-lg font-bold text-orange-400">${{ "%.2f" | format(stats.total_cost_usd / stats.total_sessions) if stats.total_sessions else "0.00" }}</div>
+    <div class="text-xs text-gray-500 mt-1">일평균 ${{ "%.2f" | format(stats.total_cost_usd / stats.active_days) if stats.active_days else "0.00" }}</div>
+  </div>
+</div>
+
+<!-- Daily Activity Chart -->
+<div class="bg-gray-800 rounded-lg p-6 border border-gray-700 mb-8">
+  <h2 class="text-lg font-semibold mb-4">일별 활동</h2>
+  <div class="chart-container">
+    <canvas id="dailyActivityChart"></canvas>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+  <!-- Model Usage Pie Chart -->
+  <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+    <h2 class="text-lg font-semibold mb-4">모델별 사용량 (출력 토큰)</h2>
+    <div class="chart-container">
+      <canvas id="modelUsageChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Hourly Heatmap -->
+  <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+    <h2 class="text-lg font-semibold mb-4">시간대별 활동</h2>
+    <div class="chart-container">
+      <canvas id="hourlyChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Model Cost Table -->
+<div class="bg-gray-800 rounded-lg p-6 border border-gray-700 mb-4">
+  <h2 class="text-lg font-semibold mb-4">모델별 상세</h2>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-gray-400 border-b border-gray-700">
+          <th class="text-left py-3 px-4">모델</th>
+          <th class="text-right py-3 px-4">입력</th>
+          <th class="text-right py-3 px-4">출력</th>
+          <th class="text-right py-3 px-4">캐시 읽기</th>
+          <th class="text-right py-3 px-4">캐시 생성</th>
+          <th class="text-right py-3 px-4">비용</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in stats.model_usage %}
+        <tr class="border-b border-gray-700/50 hover:bg-gray-700/30">
+          <td class="py-3 px-4 font-medium">{{ m.display_name }}</td>
+          <td class="py-3 px-4 text-right text-gray-300">{{ "{:,}".format(m.input_tokens) }}</td>
+          <td class="py-3 px-4 text-right text-gray-300">{{ "{:,}".format(m.output_tokens) }}</td>
+          <td class="py-3 px-4 text-right text-gray-300">{{ "{:,}".format(m.cache_read_input_tokens) }}</td>
+          <td class="py-3 px-4 text-right text-gray-300">{{ "{:,}".format(m.cache_creation_input_tokens) }}</td>
+          <td class="py-3 px-4 text-right font-semibold text-orange-400">${{ "%.2f" | format(m.cost_usd) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="text-right text-xs text-gray-500">갱신: {{ updated_at }}</div>
+
+<script>
+  (function() {
+    const dailyData = {{ daily_chart | tojson }};
+    const modelData = {{ model_chart | tojson }};
+    const hourCounts = {{ stats.hour_counts | tojson }};
+
+    createLineChart('dailyActivityChart', {
+      labels: dailyData.map(d => d.date.slice(5)),
+      datasets: [
+        {
+          label: '메시지',
+          data: dailyData.map(d => d.message_count),
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.3,
+        },
+        {
+          label: '도구 호출',
+          data: dailyData.map(d => d.tool_call_count),
+          borderColor: '#a855f7',
+          backgroundColor: 'rgba(168, 85, 247, 0.1)',
+          fill: true,
+          tension: 0.3,
+        },
+      ],
+    });
+
+    createDoughnutChart('modelUsageChart', {
+      labels: modelData.map(d => d.display_name),
+      data: modelData.map(d => d.output_tokens),
+      colors: ['#f97316', '#3b82f6', '#10b981', '#a855f7'],
+    });
+
+    const hours = Array.from({length: 24}, (_, i) => i);
+    createBarChart('hourlyChart', {
+      labels: hours.map(h => h + '시'),
+      datasets: [{
+        label: '세션',
+        data: hours.map(h => hourCounts[String(h)] || 0),
+        backgroundColor: '#3b82f6',
+        borderRadius: 4,
+      }],
+    });
+  })();
+</script>

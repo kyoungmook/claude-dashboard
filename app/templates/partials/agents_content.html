@@ -1,0 +1,125 @@
+<!-- Summary Stats -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+  <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 text-center">
+    <div class="text-3xl font-bold text-blue-400">{{ definitions | length }}</div>
+    <div class="text-sm text-gray-400 mt-1">등록된 에이전트</div>
+  </div>
+  <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 text-center">
+    <div class="text-3xl font-bold text-green-400">{{ "{:,}".format(total_invocations) }}</div>
+    <div class="text-sm text-gray-400 mt-1">총 호출 횟수</div>
+  </div>
+  <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 text-center">
+    <div class="text-3xl font-bold text-orange-400">{{ "{:,}".format(total_tokens) }}</div>
+    <div class="text-sm text-gray-400 mt-1">총 토큰 사용량</div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+  <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+    <h2 class="text-lg font-semibold mb-4">에이전트별 호출 횟수</h2>
+    <div class="chart-container" style="height: 300px;">
+      <canvas id="agentUsageChart"></canvas>
+    </div>
+  </div>
+  <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+    <h2 class="text-lg font-semibold mb-4">도구 사용 분포</h2>
+    <div class="chart-container" style="height: 300px;">
+      <canvas id="toolDistChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Agent Definitions -->
+<div class="mb-8">
+  <h2 class="text-lg font-semibold mb-4">등록된 에이전트 목록</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for defn in definitions %}
+    {% set stats = None %}
+    {% for a in analytics if a.agent_name == defn.name %}
+      {% set stats = a %}
+    {% endfor %}
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-500 transition-colors">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-semibold text-blue-400">{{ defn.name }}</h3>
+        <span class="text-xs px-2 py-0.5 bg-gray-700 text-gray-300 rounded">{{ defn.model or "default" }}</span>
+      </div>
+      <p class="text-xs text-gray-400 mb-3 line-clamp-2">{{ defn.description[:120] }}{% if defn.description | length > 120 %}...{% endif %}</p>
+      <div class="flex flex-wrap gap-1 mb-2">
+        {% for tool in defn.tools %}
+        <span class="text-xs px-1.5 py-0.5 bg-gray-700/50 text-gray-400 rounded">{{ tool }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Recent Subagent Activity -->
+<div class="mb-4">
+  <h2 class="text-lg font-semibold mb-4">최근 서브에이전트 활동</h2>
+  <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-700/50">
+        <tr>
+          <th class="text-left px-4 py-2 text-gray-400 font-medium">에이전트</th>
+          <th class="text-left px-4 py-2 text-gray-400 font-medium">프로젝트</th>
+          <th class="text-right px-4 py-2 text-gray-400 font-medium">메시지</th>
+          <th class="text-right px-4 py-2 text-gray-400 font-medium">토큰</th>
+          <th class="text-left px-4 py-2 text-gray-400 font-medium">도구</th>
+          <th class="text-right px-4 py-2 text-gray-400 font-medium">시간</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for act in recent_activities %}
+        <tr class="border-t border-gray-700/50 hover:bg-gray-750">
+          <td class="px-4 py-2 font-mono text-xs text-gray-300">{{ act.agent_id[:15] }}</td>
+          <td class="px-4 py-2 text-gray-300">{{ act.project_name }}</td>
+          <td class="px-4 py-2 text-right text-gray-300">{{ act.message_count }}</td>
+          <td class="px-4 py-2 text-right text-gray-300">{{ "{:,}".format(act.total_input_tokens + act.total_output_tokens) }}</td>
+          <td class="px-4 py-2">
+            <div class="flex flex-wrap gap-0.5">
+              {% for tool in act.tools_used[:5] %}
+              <span class="text-xs px-1 bg-gray-700 text-gray-400 rounded">{{ tool }}</span>
+              {% endfor %}
+              {% if act.tools_used | length > 5 %}
+              <span class="text-xs text-gray-500">+{{ act.tools_used | length - 5 }}</span>
+              {% endif %}
+            </div>
+          </td>
+          <td class="px-4 py-2 text-right text-xs text-gray-500">{{ act.last_timestamp | kst }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="text-right text-xs text-gray-500">갱신: {{ updated_at }}</div>
+
+<script>
+(function() {
+  const usageData = {{ chart_data | tojson }};
+  createHorizontalBarChart('agentUsageChart', {
+    labels: usageData.map(d => d.name),
+    datasets: [{
+      label: '호출 횟수',
+      data: usageData.map(d => d.count),
+      backgroundColor: '#3b82f6',
+      borderRadius: 4,
+    }],
+  });
+
+  const toolData = {{ tool_chart_data | tojson }};
+  const colors = [
+    '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6',
+    '#ec4899','#06b6d4','#84cc16','#f97316','#6366f1',
+    '#14b8a6','#e11d48','#a855f7','#0ea5e9','#d946ef'
+  ];
+  createDoughnutChart('toolDistChart', {
+    labels: toolData.map(d => d.name),
+    data: toolData.map(d => d.count),
+    colors: colors.slice(0, toolData.length),
+  });
+})();
+</script>

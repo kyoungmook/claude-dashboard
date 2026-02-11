@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div class="flex items-center gap-4">
+    <a href="/teams" class="text-gray-400 hover:text-white transition-colors">&larr; 돌아가기</a>
+    <h1 class="text-2xl font-bold">에이전트 리플레이</h1>
+  </div>
+  {% if session_info %}
+  <div class="text-sm text-gray-400">
+    <span class="text-blue-400 font-medium">{{ session_info.project_name }}</span>
+    &middot; 에이전트 {{ session_info.agent_count }}개
+    &middot; {{ event_count }}개 이벤트
+  </div>
+  {% endif %}
+</div>
+
+<!-- Player Controls -->
+<div class="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-6 sticky top-0 z-10">
+  <div class="flex items-center gap-4">
+    <button id="playBtn" onclick="replayToggle()"
+            class="w-10 h-10 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-colors text-lg">
+      &#9654;
+    </button>
+    <button onclick="replayReset()"
+            class="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors text-sm">
+      &#8634; 처음부터
+    </button>
+
+    <!-- Progress bar -->
+    <div class="flex-1 mx-4">
+      <div class="w-full bg-gray-700 rounded-full h-2 cursor-pointer" onclick="replaySeek(event)">
+        <div id="progressBar" class="bg-blue-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+      </div>
+      <div class="flex justify-between text-xs text-gray-500 mt-1">
+        <span id="currentIdx">0</span>
+        <span>/ {{ event_count }}</span>
+      </div>
+    </div>
+
+    <!-- Speed control -->
+    <div class="flex items-center gap-2">
+      <span class="text-xs text-gray-500">속도</span>
+      <select id="speedSelect" onchange="replaySetSpeed(this.value)"
+              class="bg-gray-700 text-gray-300 text-sm rounded px-2 py-1 border border-gray-600">
+        <option value="2000">0.5x</option>
+        <option value="1000">1x</option>
+        <option value="500" selected>2x</option>
+        <option value="200">5x</option>
+        <option value="50">20x</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- Agent Lanes -->
+<div class="flex gap-4 mb-6">
+  <!-- Agent sidebar -->
+  <div class="w-48 flex-shrink-0">
+    <div class="sticky top-28 space-y-2">
+      <h3 class="text-sm font-semibold text-gray-400 mb-3">에이전트 목록</h3>
+      {% for aid in agent_ids %}
+      <div class="flex items-center gap-2 px-3 py-2 rounded bg-gray-800 border border-gray-700"
+           id="agent-badge-{{ aid }}">
+        <span class="w-3 h-3 rounded-full flex-shrink-0"
+              style="background-color: hsl({{ (loop.index0 * 137) % 360 }}, 60%, 50%);"></span>
+        <span class="text-sm text-gray-300 truncate" title="{{ aid }}">{{ agent_labels.get(aid, aid[:7]) }}</span>
+        <span class="agent-status text-xs text-gray-600 ml-auto">대기</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Chat timeline -->
+  <div class="flex-1 min-w-0">
+    <div id="chatTimeline" class="space-y-2 max-h-[70vh] overflow-y-auto pr-2">
+      <div class="text-center text-gray-500 text-sm py-8">
+        &#9654; 재생 버튼을 눌러 리플레이를 시작하세요
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const EVENTS = {{ events | tojson }};
+const AGENT_COLORS = {};
+const agentIds = {{ agent_ids | tojson }};
+agentIds.forEach((id, i) => {
+  AGENT_COLORS[id] = `hsl(${(i * 137) % 360}, 60%, 50%)`;
+});
+
+let currentIndex = 0;
+let isPlaying = false;
+let playTimer = null;
+let speed = 500;
+
+function replayToggle() {
+  if (isPlaying) {
+    replayPause();
+  } else {
+    replayPlay();
+  }
+}
+
+function replayPlay() {
+  if (currentIndex >= EVENTS.length) {
+    currentIndex = 0;
+    document.getElementById('chatTimeline').innerHTML = '';
+  }
+  isPlaying = true;
+  document.getElementById('playBtn').innerHTML = '&#10074;&#10074;';
+  playNext();
+}
+
+function replayPause() {
+  isPlaying = false;
+  if (playTimer) clearTimeout(playTimer);
+  document.getElementById('playBtn').innerHTML = '&#9654;';
+}
+
+function replayReset() {
+  replayPause();
+  currentIndex = 0;
+  document.getElementById('chatTimeline').innerHTML =
+    '<div class="text-center text-gray-500 text-sm py-8">&#9654; 재생 버튼을 눌러 리플레이를 시작하세요</div>';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('currentIdx').textContent = '0';
+  document.querySelectorAll('.agent-status').forEach(el => {
+    el.textContent = '대기';
+    el.className = 'agent-status text-xs text-gray-600 ml-auto';
+  });
+}
+
+function replaySetSpeed(ms) {
+  speed = parseInt(ms);
+}
+
+function replaySeek(e) {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  const targetIdx = Math.floor(pct * EVENTS.length);
+  const wasPlaying = isPlaying;
+  replayPause();
+  currentIndex = 0;
+  document.getElementById('chatTimeline').innerHTML = '';
+  for (let i = 0; i < targetIdx && i < EVENTS.length; i++) {
+    renderEvent(EVENTS[i], false);
+    currentIndex = i + 1;
+  }
+  updateProgress();
+  if (wasPlaying) replayPlay();
+}
+
+function playNext() {
+  if (!isPlaying || currentIndex >= EVENTS.length) {
+    replayPause();
+    return;
+  }
+
+  renderEvent(EVENTS[currentIndex], true);
+  currentIndex++;
+  updateProgress();
+
+  playTimer = setTimeout(playNext, speed);
+}
+
+function updateProgress() {
+  const pct = EVENTS.length > 0 ? (currentIndex / EVENTS.length) * 100 : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('currentIdx').textContent = currentIndex;
+}
+
+function renderEvent(evt, animate) {
+  const timeline = document.getElementById('chatTimeline');
+
+  // Remove placeholder
+  const placeholder = timeline.querySelector('.text-center');
+  if (placeholder) placeholder.remove();
+
+  const color = AGENT_COLORS[evt.agent_id] || '#6b7280';
+  const el = document.createElement('div');
+  el.className = 'flex gap-3 p-3 rounded-lg border border-gray-700/50 ' +
+    (animate ? 'animate-fade-in ' : '') +
+    'bg-gray-800/50 hover:bg-gray-800';
+
+  const time = evt.timestamp
+    ? new Date(evt.timestamp).toLocaleTimeString('ko-KR', { hour12: false })
+    : '';
+
+  let icon = '';
+  let typeLabel = '';
+  let contentHtml = '';
+
+  if (evt.event_type === 'tool_use') {
+    icon = '&#128295;';
+    typeLabel = evt.tool_name;
+    contentHtml = evt.content
+      ? `<div class="text-xs text-gray-500 mt-1 font-mono truncate">${escapeHtml(evt.content)}</div>`
+      : '';
+  } else if (evt.event_type === 'task') {
+    icon = '&#128172;';
+    typeLabel = '작업 지시';
+    contentHtml = `<div class="text-sm text-gray-300 mt-1">${escapeHtml(evt.content.substring(0, 300))}</div>`;
+  } else {
+    icon = '&#128172;';
+    typeLabel = '응답';
+    contentHtml = `<div class="text-sm text-gray-300 mt-1">${escapeHtml(evt.content.substring(0, 300))}</div>`;
+  }
+
+  el.innerHTML = `
+    <div class="flex-shrink-0 w-3 h-3 rounded-full mt-1.5" style="background:${color}"></div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2">
+        <span class="text-sm font-medium" style="color:${color}">${escapeHtml(evt.agent_label)}</span>
+        <span class="text-xs text-gray-500">${icon} ${escapeHtml(typeLabel)}</span>
+        ${evt.model ? `<span class="text-xs px-1.5 py-0.5 bg-gray-700 text-gray-400 rounded">${escapeHtml(evt.model.split('-').slice(-1)[0].substring(0,10))}</span>` : ''}
+        <span class="text-xs text-gray-600 ml-auto">${time}</span>
+      </div>
+      ${contentHtml}
+    </div>
+  `;
+
+  timeline.appendChild(el);
+  if (animate) {
+    timeline.scrollTop = timeline.scrollHeight;
+  }
+
+  // Update agent badge status
+  updateAgentStatus(evt.agent_id, evt.event_type);
+}
+
+function updateAgentStatus(agentId, eventType) {
+  // Reset all
+  document.querySelectorAll('.agent-status').forEach(el => {
+    el.textContent = '대기';
+    el.className = 'agent-status text-xs text-gray-600 ml-auto';
+  });
+
+  const badge = document.getElementById('agent-badge-' + agentId);
+  if (badge) {
+    const status = badge.querySelector('.agent-status');
+    if (eventType === 'tool_use') {
+      status.textContent = '실행 중';
+      status.className = 'agent-status text-xs text-yellow-400 ml-auto';
+    } else {
+      status.textContent = '응답 중';
+      status.className = 'agent-status text-xs text-green-400 ml-auto';
+    }
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+</script>
+
+<style>
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+</style>
+{% endblock %}

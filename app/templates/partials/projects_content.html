@@ -1,0 +1,67 @@
+<!-- Project Comparison Chart -->
+<div class="bg-gray-800 rounded-lg p-6 border border-gray-700 mb-8">
+  <h2 class="text-lg font-semibold mb-4">프로젝트별 세션 수</h2>
+  <div class="chart-container" style="height: 400px;">
+    <canvas id="projectChart"></canvas>
+  </div>
+</div>
+
+<!-- Project Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+  {% for p in projects %}
+  <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 hover:border-gray-500 transition-colors">
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <h3 class="font-semibold text-blue-400 text-lg">{{ p.project_name }}</h3>
+        <div class="text-xs text-gray-400 mt-0.5">{{ p.project_path }}</div>
+      </div>
+      <span class="text-orange-400 font-bold">${{ "%.2f" | format(p.total_cost_usd) }}</span>
+    </div>
+
+    <div class="grid grid-cols-3 gap-3 text-center mb-3">
+      <div>
+        <div class="text-lg font-bold text-gray-200">{{ p.session_count }}</div>
+        <div class="text-xs text-gray-400">세션</div>
+      </div>
+      <div>
+        <div class="text-lg font-bold text-gray-200">{{ "{:,}".format(p.total_messages) }}</div>
+        <div class="text-xs text-gray-400">메시지</div>
+      </div>
+      <div>
+        <div class="text-lg font-bold text-gray-200">{{ "{:,}".format(p.tool_calls_count) }}</div>
+        <div class="text-xs text-gray-400">도구 호출</div>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-1 mb-2">
+      {% for model in p.models_used %}
+      <span class="text-xs px-2 py-0.5 bg-gray-700 text-gray-300 rounded">{{ get_model_display_name(model) }}</span>
+      {% endfor %}
+    </div>
+
+    <div class="text-xs text-gray-500">
+      출력: {{ "{:,}".format(p.total_usage.output_tokens) }} 토큰
+      &middot; 최근: {{ p.last_activity | kst }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="text-right text-xs text-gray-500">갱신: {{ updated_at }}</div>
+
+<script>
+  (function() {
+    const chartData = {{ chart_data | tojson }};
+    const top15 = chartData.slice(0, 15);
+
+    createHorizontalBarChart('projectChart', {
+      labels: top15.map(p => p.project_name),
+      datasets: [{
+        label: '세션',
+        data: top15.map(p => p.session_count),
+        backgroundColor: '#3b82f6',
+        borderRadius: 4,
+      }],
+    });
+  })();
+</script>

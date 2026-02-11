@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if session %}
+<!-- Session Header -->
+<div class="mb-6">
+  <a href="/sessions" class="text-sm text-gray-400 hover:text-white">&larr; 세션 목록</a>
+  <h1 class="text-2xl font-bold mt-2">{{ session.project_name }}</h1>
+  <div class="flex flex-wrap gap-4 mt-2 text-sm text-gray-400">
+    <span>세션: {{ session.session_id[:12] }}...</span>
+    {% if session.git_branch %}
+    <span class="px-2 py-0.5 bg-gray-700 rounded text-gray-300">{{ session.git_branch }}</span>
+    {% endif %}
+    <span>{{ session.first_timestamp | kst }}</span>
+    {% if session.models_used %}
+    <span>{{ get_model_display_names(session.models_used) | join(', ') }}</span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Connection Status -->
+<div id="connectionStatus" class="mb-4 flex items-center gap-2 text-xs text-gray-500">
+  <span id="statusDot" class="inline-block w-2 h-2 rounded-full bg-gray-600"></span>
+  <span id="statusText">연결 중...</span>
+</div>
+
+<!-- Session Stats -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+  <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <div class="text-xs text-gray-400">메시지</div>
+    <div id="statMessages" class="text-xl font-bold text-blue-400">{{ session.message_count }}</div>
+  </div>
+  <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <div class="text-xs text-gray-400">도구 호출</div>
+    <div id="statToolCalls" class="text-xl font-bold text-purple-400">{{ session.tool_calls_count }}</div>
+  </div>
+  <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <div class="text-xs text-gray-400">입력 토큰</div>
+    <div id="statInputTokens" class="text-xl font-bold text-green-400">{{ "{:,}".format(session.total_usage.input_tokens) }}</div>
+  </div>
+  <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <div class="text-xs text-gray-400">출력 토큰</div>
+    <div id="statOutputTokens" class="text-xl font-bold text-orange-400">{{ "{:,}".format(session.total_usage.output_tokens) }}</div>
+  </div>
+</div>
+
+<!-- Conversation Flow -->
+<div id="messagesContainer" class="space-y-4">
+  {% for msg in messages %}
+  <div class="{% if msg.msg_type == 'user' %}ml-0 mr-12{% elif msg.msg_type == 'assistant' %}ml-12 mr-0{% else %}mx-6{% endif %}">
+    <div class="rounded-lg p-4 border
+                {% if msg.msg_type == 'user' %}bg-blue-900/30 border-blue-800
+                {% elif msg.msg_type == 'assistant' %}bg-gray-800 border-gray-700
+                {% else %}bg-gray-800/50 border-gray-700/50{% endif %}">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold uppercase
+                       {% if msg.msg_type == 'user' %}text-blue-400
+                       {% elif msg.msg_type == 'assistant' %}text-green-400
+                       {% else %}text-gray-500{% endif %}">
+            {% if msg.msg_type == 'user' %}사용자{% elif msg.msg_type == 'assistant' %}어시스턴트{% else %}시스템{% endif %}
+            {% if msg.subtype %}<span class="text-gray-500 normal-case">({{ msg.subtype }})</span>{% endif %}
+          </span>
+          {% if msg.model %}
+          <span class="text-xs text-gray-500">{{ msg.model | replace('claude-', '') | truncate(20) }}</span>
+          {% endif %}
+        </div>
+        {% if msg.usage.output_tokens > 0 %}
+        <span class="text-xs text-gray-500">{{ "{:,}".format(msg.usage.output_tokens) }} 출력</span>
+        {% endif %}
+        {% if msg.duration_ms > 0 %}
+        <span class="text-xs text-gray-500">{{ "%.1f" | format(msg.duration_ms / 1000) }}s</span>
+        {% endif %}
+      </div>
+
+      <!-- Tool Calls -->
+      {% if msg.tool_calls %}
+      <div class="flex flex-wrap gap-1 mb-2">
+        {% for tc in msg.tool_calls %}
+        <span class="text-xs px-2 py-0.5 bg-purple-900/50 text-purple-300 rounded">{{ tc.name }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Content -->
+      {% if msg.content_text %}
+      <div class="text-sm text-gray-300 whitespace-pre-wrap break-words max-h-96 overflow-y-auto">{{ msg.content_text[:2000] }}{% if msg.content_text | length > 2000 %}...{% endif %}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Real-time Tailing Script -->
+<script>
+(function() {
+  const sessionId = {{ session.session_id | tojson }};
+  const container = document.getElementById("messagesContainer");
+  const statusDot = document.getElementById("statusDot");
+  const statusText = document.getElementById("statusText");
+  const statMessages = document.getElementById("statMessages");
+  const statToolCalls = document.getElementById("statToolCalls");
+  const statInputTokens = document.getElementById("statInputTokens");
+  const statOutputTokens = document.getElementById("statOutputTokens");
+
+  let messageCount = {{ session.message_count }};
+  let toolCallsCount = {{ session.tool_calls_count }};
+  let inputTokens = {{ session.total_usage.input_tokens }};
+  let outputTokens = {{ session.total_usage.output_tokens }};
+
+  function formatNumber(n) {
+    return n.toLocaleString();
+  }
+
+  function setConnected() {
+    statusDot.className = "inline-block w-2 h-2 rounded-full bg-green-500";
+    statusText.textContent = "실시간 연결됨";
+  }
+
+  function setDisconnected() {
+    statusDot.className = "inline-block w-2 h-2 rounded-full bg-red-500";
+    statusText.textContent = "연결 끊김 — 재연결 중...";
+  }
+
+  function isNearBottom() {
+    return (window.innerHeight + window.scrollY) >= (document.body.scrollHeight - 200);
+  }
+
+  function scrollToBottom() {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function buildMessageHtml(msg) {
+    const isUser = msg.msg_type === "user";
+    const isAssistant = msg.msg_type === "assistant";
+
+    const outerClass = isUser ? "ml-0 mr-12" : isAssistant ? "ml-12 mr-0" : "mx-6";
+    const bgClass = isUser
+      ? "bg-blue-900/30 border-blue-800"
+      : isAssistant
+        ? "bg-gray-800 border-gray-700"
+        : "bg-gray-800/50 border-gray-700/50";
+    const labelClass = isUser ? "text-blue-400" : isAssistant ? "text-green-400" : "text-gray-500";
+    const label = isUser ? "사용자" : isAssistant ? "어시스턴트" : "시스템";
+
+    let toolCallsHtml = "";
+    if (msg.tool_calls && msg.tool_calls.length > 0) {
+      const chips = msg.tool_calls.map(function(name) {
+        return '<span class="text-xs px-2 py-0.5 bg-purple-900/50 text-purple-300 rounded">' + escapeHtml(name) + '</span>';
+      }).join("");
+      toolCallsHtml = '<div class="flex flex-wrap gap-1 mb-2">' + chips + '</div>';
+    }
+
+    let modelHtml = "";
+    if (msg.model) {
+      const shortModel = msg.model.replace("claude-", "").substring(0, 20);
+      modelHtml = '<span class="text-xs text-gray-500">' + escapeHtml(shortModel) + '</span>';
+    }
+
+    let usageHtml = "";
+    if (msg.usage && msg.usage.output_tokens > 0) {
+      usageHtml = '<span class="text-xs text-gray-500">' + formatNumber(msg.usage.output_tokens) + ' 출력</span>';
+    }
+
+    let durationHtml = "";
+    if (msg.duration_ms > 0) {
+      durationHtml = '<span class="text-xs text-gray-500">' + (msg.duration_ms / 1000).toFixed(1) + 's</span>';
+    }
+
+    const contentText = msg.content_text || "";
+    const truncated = contentText.length > 2000 ? contentText.substring(0, 2000) + "..." : contentText;
+    const contentHtml = truncated
+      ? '<div class="text-sm text-gray-300 whitespace-pre-wrap break-words max-h-96 overflow-y-auto">' + escapeHtml(truncated) + '</div>'
+      : "";
+
+    return '<div class="' + outerClass + ' session-new-msg" style="opacity:0;transition:opacity 0.4s ease-in">'
+      + '<div class="rounded-lg p-4 border ' + bgClass + '">'
+      + '<div class="flex items-center justify-between mb-2">'
+      + '<div class="flex items-center gap-2">'
+      + '<span class="text-xs font-semibold uppercase ' + labelClass + '">' + label + '</span>'
+      + modelHtml
+      + '</div>'
+      + usageHtml + durationHtml
+      + '</div>'
+      + toolCallsHtml
+      + contentHtml
+      + '</div></div>';
+  }
+
+  function updateStats(msg) {
+    messageCount++;
+    statMessages.textContent = formatNumber(messageCount);
+
+    if (msg.tool_calls) {
+      toolCallsCount += msg.tool_calls.length;
+      statToolCalls.textContent = formatNumber(toolCallsCount);
+    }
+
+    if (msg.usage) {
+      inputTokens += (msg.usage.input_tokens || 0);
+      outputTokens += (msg.usage.output_tokens || 0);
+      statInputTokens.textContent = formatNumber(inputTokens);
+      statOutputTokens.textContent = formatNumber(outputTokens);
+    }
+  }
+
+  var currentES = null;
+
+  function connectSSE() {
+    if (currentES) {
+      currentES.close();
+    }
+    currentES = new EventSource("/sessions/" + sessionId + "/stream");
+
+    currentES.onopen = function() {
+      setConnected();
+    };
+
+    currentES.onmessage = function(event) {
+      var msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch (e) {
+        return;
+      }
+      if (msg.error) return;
+
+      var wasNearBottom = isNearBottom();
+
+      container.insertAdjacentHTML("beforeend", buildMessageHtml(msg));
+      updateStats(msg);
+
+      var newEl = container.lastElementChild;
+      requestAnimationFrame(function() {
+        newEl.style.opacity = "1";
+      });
+
+      if (wasNearBottom) {
+        scrollToBottom();
+      }
+    };
+
+    currentES.onerror = function() {
+      setDisconnected();
+      currentES.close();
+      currentES = null;
+      setTimeout(connectSSE, 5000);
+    };
+  }
+
+  window.addEventListener("pagehide", function() {
+    if (currentES) {
+      currentES.close();
+      currentES = null;
+    }
+  });
+
+  connectSSE();
+})();
+</script>
+
+{% else %}
+<div class="text-center text-gray-400 py-20">
+  <h2 class="text-xl mb-2">세션을 찾을 수 없습니다</h2>
+  <a href="/sessions" class="text-blue-400 hover:underline">세션 목록으로</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-4">
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-white">라이브 피드</h1>
+    <div class="flex items-center gap-3">
+      <button id="toggleBtn" onclick="toggleStream()"
+              class="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-sm text-white font-medium transition-colors">
+        ● 실시간
+      </button>
+      <button id="clearBtn" onclick="clearLog()"
+              class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm text-gray-300 transition-colors">
+        지우기
+      </button>
+      <span id="eventCount" class="text-xs text-gray-400">0개 이벤트</span>
+    </div>
+  </div>
+
+  <!-- Terminal -->
+  <div id="logContainer"
+       class="bg-black rounded-lg border border-gray-700 font-mono text-sm overflow-y-auto p-4"
+       style="height: calc(100vh - 200px);">
+    <div id="logEntries"></div>
+    <div id="emptyState" class="text-gray-500 text-center py-12">
+      SSE 스트림 연결 중...
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const MAX_EVENTS = 500;
+  const logEntries = document.getElementById('logEntries');
+  const emptyState = document.getElementById('emptyState');
+  const logContainer = document.getElementById('logContainer');
+  const toggleBtn = document.getElementById('toggleBtn');
+  const eventCountEl = document.getElementById('eventCount');
+
+  let source = null;
+  let eventCount = 0;
+  let autoScroll = true;
+  let connected = false;
+
+  logContainer.addEventListener('scroll', function() {
+    const atBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < 50;
+    autoScroll = atBottom;
+  });
+
+  function formatTime(isoStr) {
+    if (!isoStr) return '--:--:--';
+    try {
+      const d = new Date(isoStr);
+      return d.toLocaleTimeString('ko-KR', { hour12: false });
+    } catch {
+      return '--:--:--';
+    }
+  }
+
+  function escapeHtml(text) {
+    const el = document.createElement('span');
+    el.textContent = text;
+    return el.innerHTML;
+  }
+
+  function typeColor(msgType) {
+    switch (msgType) {
+      case 'user': return 'text-blue-400';
+      case 'assistant': return 'text-green-400';
+      case 'system': return 'text-gray-500';
+      default: return 'text-gray-400';
+    }
+  }
+
+  function typeLabel(msgType) {
+    switch (msgType) {
+      case 'user': return '사용자';
+      case 'assistant': return '어시스턴트';
+      case 'system': return '시스템';
+      default: return msgType;
+    }
+  }
+
+  function appendLogEntry(data) {
+    if (emptyState.style.display !== 'none') {
+      emptyState.style.display = 'none';
+    }
+
+    const entry = document.createElement('div');
+    entry.className = 'py-1 border-b border-gray-800 hover:bg-gray-900/50';
+
+    const time = formatTime(data.timestamp);
+    const colorClass = typeColor(data.msg_type);
+    const label = typeLabel(data.msg_type);
+    const preview = escapeHtml(data.content_preview || '');
+
+    let toolsHtml = '';
+    if (data.tool_calls && data.tool_calls.length > 0) {
+      const tags = data.tool_calls.map(function(t) {
+        return '<span class="inline-block px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded text-xs">' + escapeHtml(t) + '</span>';
+      }).join(' ');
+      toolsHtml = ' ' + tags;
+    }
+
+    let metaHtml = '';
+    if (data.output_tokens > 0) {
+      metaHtml += '<span class="text-gray-500 text-xs ml-2">(' + data.output_tokens.toLocaleString() + ' 출력';
+      if (data.duration_ms > 0) {
+        metaHtml += ' · ' + (data.duration_ms / 1000).toFixed(1) + 's';
+      }
+      metaHtml += ')</span>';
+    }
+
+    entry.innerHTML =
+      '<span class="text-gray-600">[' + time + ']</span> ' +
+      '<span class="text-yellow-500">' + escapeHtml(data.project_name) + '</span>' +
+      ' <span class="text-gray-600">▸</span> ' +
+      '<span class="' + colorClass + ' font-semibold">' + label + '</span>' +
+      toolsHtml + metaHtml +
+      (preview ? '<br><span class="text-gray-400 ml-16 text-xs">' + preview + '</span>' : '');
+
+    logEntries.appendChild(entry);
+    eventCount++;
+
+    while (logEntries.children.length > MAX_EVENTS) {
+      logEntries.removeChild(logEntries.firstChild);
+    }
+
+    eventCountEl.textContent = eventCount + '개 이벤트';
+
+    if (autoScroll) {
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+  }
+
+  function connect() {
+    if (source) {
+      source.close();
+    }
+    source = new EventSource('/live/stream');
+
+    source.onopen = function() {
+      connected = true;
+      toggleBtn.className = 'px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-sm text-white font-medium transition-colors';
+      toggleBtn.textContent = '● 실시간';
+      emptyState.textContent = '새 메시지 대기 중...';
+    };
+
+    source.onmessage = function(e) {
+      try {
+        var data = JSON.parse(e.data);
+        appendLogEntry(data);
+      } catch {
+        // skip malformed events
+      }
+    };
+
+    source.onerror = function() {
+      if (connected) {
+        emptyState.style.display = '';
+        emptyState.textContent = '연결 끊김 — 재연결 시도 중...';
+      }
+      connected = false;
+    };
+  }
+
+  function disconnect() {
+    if (source) {
+      source.close();
+      source = null;
+    }
+    connected = false;
+    toggleBtn.className = 'px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded text-sm text-white font-medium transition-colors';
+    toggleBtn.textContent = '■ 중지됨';
+  }
+
+  window.toggleStream = function() {
+    if (connected || source) {
+      disconnect();
+    } else {
+      connect();
+    }
+  };
+
+  window.clearLog = function() {
+    logEntries.innerHTML = '';
+    eventCount = 0;
+    eventCountEl.textContent = '0개 이벤트';
+    emptyState.style.display = '';
+    emptyState.textContent = '새 메시지 대기 중...';
+  };
+
+  connect();
+})();
+</script>
+{% endblock %}

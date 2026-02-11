@@ -1,0 +1,48 @@
+<nav class="bg-gray-900 border-b border-gray-700">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      <div class="flex items-center space-x-4">
+        <span class="text-xl font-bold text-orange-400">Claude Dashboard</span>
+        <div class="hidden md:flex space-x-1">
+          <a href="/"
+             class="px-3 py-2 rounded-md text-sm font-medium {{ 'bg-gray-800 text-white' if page_title == '개요' else 'text-gray-300 hover:bg-gray-700 hover:text-white' }} transition-colors">
+            개요
+          </a>
+          <a href="/sessions"
+             class="px-3 py-2 rounded-md text-sm font-medium {{ 'bg-gray-800 text-white' if page_title == '세션' else 'text-gray-300 hover:bg-gray-700 hover:text-white' }} transition-colors">
+            세션
+          </a>
+          <a href="/live"
+             class="px-3 py-2 rounded-md text-sm font-medium {{ 'bg-gray-800 text-white' if page_title == '라이브' else 'text-gray-300 hover:bg-gray-700 hover:text-white' }} transition-colors">
+            라이브
+          </a>
+          <a href="/tokens"
+             class="px-3 py-2 rounded-md text-sm font-medium {{ 'bg-gray-800 text-white' if '토큰' in page_title else 'text-gray-300 hover:bg-gray-700 hover:text-white' }} transition-colors">
+            토큰 & 비용
+          </a>
+          <a href="/tools"
+             class="px-3 py-2 rounded-md text-sm font-medium {{ 'bg-gray-800 text-white' if page_title == '도구 사용' else 'text-gray-300 hover:bg-gray-700 hover:text-white' }} transition-colors">
+            도구
+          </a>
+          <a href="/projects"
+             class="px-3 py-2 rounded-md text-sm font-medium {{ 'bg-gray-800 text-white' if page_title == '프로젝트' else 'text-gray-300 hover:bg-gray-700 hover:text-white' }} transition-colors">
+            프로젝트
+          </a>
+          <a href="/tasks"
+             class="px-3 py-2 rounded-md text-sm font-medium {{ 'bg-gray-800 text-white' if page_title == '태스크' else 'text-gray-300 hover:bg-gray-700 hover:text-white' }} transition-colors">
+            태스크
+          </a>
+          <a href="/agents"
+             class="px-3 py-2 rounded-md text-sm font-medium {{ 'bg-gray-800 text-white' if page_title == '에이전트 분석' else 'text-gray-300 hover:bg-gray-700 hover:text-white' }} transition-colors">
+            에이전트
+          </a>
+          <a href="/teams"
+             class="px-3 py-2 rounded-md text-sm font-medium {{ 'bg-gray-800 text-white' if page_title == '팀 모니터' or page_title == '에이전트 리플레이' else 'text-gray-300 hover:bg-gray-700 hover:text-white' }} transition-colors">
+            팀
+          </a>
+        </div>
+      </div>
+      <div class="text-gray-400 text-xs">localhost:8000</div>
+    </div>
+  </div>
+</nav>

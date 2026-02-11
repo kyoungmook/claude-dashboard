@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold">세션</h1>
+  <div class="flex items-center gap-2">
+    <span class="refresh-indicator w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+    <span class="text-xs text-gray-500">Live</span>
+  </div>
+</div>
+
+<!-- Search (outside polling zone) -->
+<form action="/sessions" method="get" class="mb-6">
+  <div class="flex gap-2">
+    <input type="text" name="q" value="{{ query }}"
+           placeholder="프로젝트, 브랜치, 세션 ID로 검색..."
+           class="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500">
+    <button type="submit"
+            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+      검색
+    </button>
+  </div>
+</form>
+
+<div id="sessions-content"
+     hx-get="/sessions?q={{ query | urlencode }}&page={{ page }}"
+     hx-trigger="every 30s"
+     hx-swap="innerHTML">
+  {% include "partials/sessions_content.html" %}
+</div>
+{% endblock %}
