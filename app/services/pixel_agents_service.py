@@ -70,14 +70,14 @@ def _find_active_jsonl_files(
 
 def _detect_state_from_tail(
     file_path: Path,
-) -> tuple[str, str, str]:
+) -> tuple[str, str, str, str, bool]:
     try:
         file_size = file_path.stat().st_size
     except OSError:
-        return ("idle", "", "")
+        return ("idle", "", "", "", False)
 
     if file_size == 0:
-        return ("idle", "", "")
+        return ("idle", "", "", "", False)
 
     read_size = min(file_size, _TAIL_BYTES)
     offset = file_size - read_size
@@ -87,7 +87,7 @@ def _detect_state_from_tail(
             f.seek(offset)
             data = f.read(read_size)
     except OSError:
-        return ("idle", "", "")
+        return ("idle", "", "", "", False)
 
     text = data.decode("utf-8", errors="replace")
     lines = text.strip().split("\n")
@@ -95,6 +95,7 @@ def _detect_state_from_tail(
     if offset > 0 and lines:
         lines = lines[1:]
 
+    has_parent_tool_use_id = False
     last_record: dict[str, Any] | None = None
     for line in reversed(lines):
         line = line.strip()
@@ -104,20 +105,25 @@ def _detect_state_from_tail(
             record = json.loads(line)
             if isinstance(record, dict) and "type" in record:
                 last_record = record
+                if "parentToolUseID" in record:
+                    has_parent_tool_use_id = True
                 break
         except (json.JSONDecodeError, ValueError):
             continue
 
+    if not has_parent_tool_use_id and last_record is None:
+        has_parent_tool_use_id = _scan_for_parent_tool_use_id(lines)
+
     if last_record is None:
-        return ("idle", "", "")
+        return ("idle", "", "", "", has_parent_tool_use_id)
 
     record_type = last_record.get("type", "")
 
     if record_type == "system":
-        return ("idle", "", "")
+        return ("idle", "", "", "", has_parent_tool_use_id)
 
     if record_type == "user":
-        return ("typing", "", "응답 생성 중...")
+        return ("typing", "", "응답 생성 중...", "", has_parent_tool_use_id)
 
     if record_type == "assistant":
         message = last_record.get("message", {})
@@ -132,11 +138,25 @@ def _detect_state_from_tail(
 
             if last_tool_name:
                 state, status = TOOL_STATE_MAP.get(last_tool_name, _DEFAULT_STATE)
-                return (state, last_tool_name, status)
+                return (state, last_tool_name, status, model, has_parent_tool_use_id)
 
-        return ("typing", "", "생각 중...")
+        return ("typing", "", "생각 중...", model, has_parent_tool_use_id)
 
-    return ("idle", "", "")
+    return ("idle", "", "", "", has_parent_tool_use_id)
+
+
+def _scan_for_parent_tool_use_id(lines: list[str]) -> bool:
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+            if isinstance(record, dict) and "parentToolUseID" in record:
+                return True
+        except (json.JSONDecodeError, ValueError):
+            continue
+    return False
 
 
 def _get_active_agents_impl(
@@ -147,7 +167,9 @@ def _get_active_agents_impl(
     agents: list[PixelAgentState] = []
 
     for desk_index, (file_path, project_name, mtime) in enumerate(active_files):
-        state, tool_name, tool_status = _detect_state_from_tail(file_path)
+        state, tool_name, tool_status, model, is_subagent = _detect_state_from_tail(
+            file_path
+        )
         session_id = file_path.stem
         last_activity = utc_to_kst(
             time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(mtime))
@@ -160,9 +182,11 @@ def _get_active_agents_impl(
                 state=state,
                 tool_name=tool_name,
                 tool_status=tool_status,
+                model=model,
                 desk_index=desk_index,
                 last_activity_ts=last_activity,
                 session_id=session_id,
+                is_subagent=is_subagent,
             )
         )
 

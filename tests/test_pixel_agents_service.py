@@ -87,7 +87,7 @@ class TestDetectState:
 
         jsonl = tmp_path / "session.jsonl"
         _write_jsonl(jsonl, [_make_assistant_with_tool("Edit", {"file_path": "/a.py"})])
-        state, tool_name, tool_status = _detect_state_from_tail(jsonl)
+        state, tool_name, tool_status, model, is_sub = _detect_state_from_tail(jsonl)
         assert state == "typing"
         assert tool_name == "Edit"
 
@@ -96,7 +96,7 @@ class TestDetectState:
 
         jsonl = tmp_path / "session.jsonl"
         _write_jsonl(jsonl, [_make_assistant_with_tool("Read", {"file_path": "/b.py"})])
-        state, tool_name, _ = _detect_state_from_tail(jsonl)
+        state, tool_name, _, model, _ = _detect_state_from_tail(jsonl)
         assert state == "reading"
         assert tool_name == "Read"
 
@@ -105,7 +105,7 @@ class TestDetectState:
 
         jsonl = tmp_path / "session.jsonl"
         _write_jsonl(jsonl, [_make_assistant_with_tool("Grep")])
-        state, tool_name, _ = _detect_state_from_tail(jsonl)
+        state, tool_name, _, model, _ = _detect_state_from_tail(jsonl)
         assert state == "reading"
         assert tool_name == "Grep"
 
@@ -114,7 +114,7 @@ class TestDetectState:
 
         jsonl = tmp_path / "session.jsonl"
         _write_jsonl(jsonl, [_make_assistant_with_tool("AskUserQuestion")])
-        state, tool_name, _ = _detect_state_from_tail(jsonl)
+        state, tool_name, _, model, _ = _detect_state_from_tail(jsonl)
         assert state == "waiting"
         assert tool_name == "AskUserQuestion"
 
@@ -126,7 +126,7 @@ class TestDetectState:
             _make_assistant_with_tool("Edit"),
             _make_user_message("fix the bug"),
         ])
-        state, _, _ = _detect_state_from_tail(jsonl)
+        state, _, _, model, _ = _detect_state_from_tail(jsonl)
         assert state == "typing"
 
     def test_turn_duration_last_returns_idle(self, tmp_path: Path):
@@ -137,7 +137,7 @@ class TestDetectState:
             _make_assistant_with_tool("Edit"),
             _make_system_turn_duration(),
         ])
-        state, _, _ = _detect_state_from_tail(jsonl)
+        state, _, _, model, _ = _detect_state_from_tail(jsonl)
         assert state == "idle"
 
     def test_empty_file_returns_idle(self, tmp_path: Path):
@@ -145,16 +145,17 @@ class TestDetectState:
 
         jsonl = tmp_path / "session.jsonl"
         jsonl.write_text("")
-        state, tool_name, _ = _detect_state_from_tail(jsonl)
+        state, tool_name, _, model, _ = _detect_state_from_tail(jsonl)
         assert state == "idle"
         assert tool_name == ""
+        assert model == ""
 
     def test_corrupt_json_returns_idle(self, tmp_path: Path):
         from app.services.pixel_agents_service import _detect_state_from_tail
 
         jsonl = tmp_path / "session.jsonl"
         jsonl.write_text("not valid json\n{broken\n")
-        state, _, _ = _detect_state_from_tail(jsonl)
+        state, _, _, model, _ = _detect_state_from_tail(jsonl)
         assert state == "idle"
 
     def test_unknown_tool_defaults_to_typing(self, tmp_path: Path):
@@ -162,7 +163,7 @@ class TestDetectState:
 
         jsonl = tmp_path / "session.jsonl"
         _write_jsonl(jsonl, [_make_assistant_with_tool("SomeNewTool")])
-        state, tool_name, tool_status = _detect_state_from_tail(jsonl)
+        state, tool_name, tool_status, model, _ = _detect_state_from_tail(jsonl)
         assert state == "typing"
         assert tool_name == "SomeNewTool"
 
@@ -178,7 +179,7 @@ class TestDetectState:
             },
             "timestamp": "2026-02-23T10:00:00Z",
         }])
-        state, _, _ = _detect_state_from_tail(jsonl)
+        state, _, _, model, _ = _detect_state_from_tail(jsonl)
         assert state == "typing"
 
     def test_multiple_tools_uses_last(self, tmp_path: Path):
@@ -196,10 +197,9 @@ class TestDetectState:
             },
             "timestamp": "2026-02-23T10:00:00Z",
         }])
-        state, tool_name, _ = _detect_state_from_tail(jsonl)
+        state, tool_name, _, model, _ = _detect_state_from_tail(jsonl)
         assert state == "typing"
         assert tool_name == "Edit"
-
 
     def test_large_file_reads_last_record(self, tmp_path: Path):
         from app.services.pixel_agents_service import _detect_state_from_tail
@@ -209,9 +209,48 @@ class TestDetectState:
         padding.append(_make_assistant_with_tool("Edit"))
         _write_jsonl(jsonl, padding)
 
-        state, tool_name, _ = _detect_state_from_tail(jsonl)
+        state, tool_name, _, model, _ = _detect_state_from_tail(jsonl)
         assert state == "typing"
         assert tool_name == "Edit"
+
+    def test_returns_model_from_assistant_with_tool(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _detect_state_from_tail
+
+        jsonl = tmp_path / "session.jsonl"
+        _write_jsonl(jsonl, [_make_assistant_with_tool("Edit")])
+        _, _, _, model, _ = _detect_state_from_tail(jsonl)
+        assert model == "claude-sonnet-4-5-20250929"
+
+    def test_returns_model_from_text_only_assistant(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _detect_state_from_tail
+
+        jsonl = tmp_path / "session.jsonl"
+        _write_jsonl(jsonl, [{
+            "type": "assistant",
+            "message": {
+                "content": [{"type": "text", "text": "thinking..."}],
+                "model": "claude-opus-4-6-20250219",
+            },
+            "timestamp": "2026-02-23T10:00:00Z",
+        }])
+        _, _, _, model, _ = _detect_state_from_tail(jsonl)
+        assert model == "claude-opus-4-6-20250219"
+
+    def test_returns_empty_model_for_user_message(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _detect_state_from_tail
+
+        jsonl = tmp_path / "session.jsonl"
+        _write_jsonl(jsonl, [_make_user_message()])
+        _, _, _, model, _ = _detect_state_from_tail(jsonl)
+        assert model == ""
+
+    def test_returns_empty_model_for_system_message(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _detect_state_from_tail
+
+        jsonl = tmp_path / "session.jsonl"
+        _write_jsonl(jsonl, [_make_system_turn_duration()])
+        _, _, _, model, _ = _detect_state_from_tail(jsonl)
+        assert model == ""
 
 
 class TestProjectNameFromDir:
@@ -351,6 +390,18 @@ class TestGetActiveAgents:
         assert agent.session_id == "sess1"
         assert agent.desk_index == 0
 
+    def test_active_agent_has_model(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _get_active_agents_impl
+
+        project_dir = tmp_path / "my-proj"
+        project_dir.mkdir()
+        jsonl = project_dir / "sess1.jsonl"
+        _write_jsonl(jsonl, [_make_assistant_with_tool("Edit")])
+
+        result = _get_active_agents_impl(tmp_path)
+        assert len(result) == 1
+        assert result[0].model == "claude-sonnet-4-5-20250929"
+
     def test_multiple_active_agents(self, tmp_path: Path):
         from app.services.pixel_agents_service import _get_active_agents_impl
 
@@ -365,3 +416,98 @@ class TestGetActiveAgents:
         states = {a.state for a in result}
         assert "typing" in states
         assert "reading" in states
+
+
+class TestSubagentDetection:
+    def _make_subagent_jsonl(self, tmp_path: Path, project_name: str, parent_session_id: str, sub_session_id: str) -> Path:
+        project_dir = tmp_path / project_name
+        project_dir.mkdir(exist_ok=True)
+        sub_jsonl = project_dir / f"{sub_session_id}.jsonl"
+        records = [
+            {
+                "type": "assistant",
+                "message": {
+                    "content": [{"type": "tool_use", "id": "t1", "name": "Read", "input": {}}],
+                    "model": "claude-haiku-4-5-20251001",
+                    "usage": {"input_tokens": 50, "output_tokens": 25},
+                },
+                "timestamp": "2026-02-23T10:00:05Z",
+                "parentToolUseID": "parent_tool_abc",
+            },
+        ]
+        _write_jsonl(sub_jsonl, records)
+        return sub_jsonl
+
+    def test_subagent_detected_by_parent_tool_use_id(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _get_active_agents_impl
+
+        project_dir = tmp_path / "proj"
+        project_dir.mkdir()
+        parent_jsonl = project_dir / "parent-sess.jsonl"
+        _write_jsonl(parent_jsonl, [_make_assistant_with_tool("Task")])
+
+        self._make_subagent_jsonl(tmp_path, "proj", "parent-sess", "sub-sess")
+
+        result = _get_active_agents_impl(tmp_path)
+        subagents = [a for a in result if a.is_subagent]
+        non_subagents = [a for a in result if not a.is_subagent]
+        assert len(subagents) == 1
+        assert subagents[0].session_id == "sub-sess"
+        assert subagents[0].is_subagent is True
+        assert len(non_subagents) == 1
+        assert non_subagents[0].session_id == "parent-sess"
+
+    def test_subagent_has_model(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _get_active_agents_impl
+
+        project_dir = tmp_path / "proj"
+        project_dir.mkdir()
+        parent_jsonl = project_dir / "parent-sess.jsonl"
+        _write_jsonl(parent_jsonl, [_make_assistant_with_tool("Task")])
+
+        self._make_subagent_jsonl(tmp_path, "proj", "parent-sess", "sub-sess")
+
+        result = _get_active_agents_impl(tmp_path)
+        subagent = [a for a in result if a.is_subagent][0]
+        assert subagent.model == "claude-haiku-4-5-20251001"
+
+    def test_no_subagent_when_no_parent_tool_use_id(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _get_active_agents_impl
+
+        project_dir = tmp_path / "proj"
+        project_dir.mkdir()
+        jsonl = project_dir / "normal-sess.jsonl"
+        _write_jsonl(jsonl, [_make_assistant_with_tool("Edit")])
+
+        result = _get_active_agents_impl(tmp_path)
+        assert len(result) == 1
+        assert result[0].is_subagent is False
+
+    def test_detect_state_returns_is_subagent_flag(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _detect_state_from_tail
+
+        jsonl = tmp_path / "sub.jsonl"
+        _write_jsonl(jsonl, [{
+            "type": "assistant",
+            "message": {
+                "content": [{"type": "tool_use", "id": "t1", "name": "Read", "input": {}}],
+                "model": "claude-haiku-4-5-20251001",
+            },
+            "parentToolUseID": "parent_xyz",
+            "timestamp": "2026-02-23T10:00:00Z",
+        }])
+        result = _detect_state_from_tail(jsonl)
+        assert len(result) == 5
+        state, tool_name, tool_status, model, is_subagent = result
+        assert is_subagent is True
+        assert model == "claude-haiku-4-5-20251001"
+
+    def test_detect_state_non_subagent_flag(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _detect_state_from_tail
+
+        jsonl = tmp_path / "normal.jsonl"
+        _write_jsonl(jsonl, [_make_assistant_with_tool("Edit")])
+        result = _detect_state_from_tail(jsonl)
+        assert len(result) == 5
+        _, _, _, _, is_subagent = result
+        assert is_subagent is False

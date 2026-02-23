@@ -31,19 +31,35 @@
 
   <div id="agentPanel" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
     {% for agent in agents %}
-    <div class="bg-gray-800 rounded border border-gray-700 p-3 flex items-center gap-3">
-      <div class="w-2 h-2 rounded-full {% if agent.state == 'typing' %}bg-green-400{% elif agent.state == 'reading' %}bg-blue-400{% elif agent.state == 'waiting' %}bg-yellow-400{% else %}bg-gray-500{% endif %}"></div>
-      <div class="min-w-0">
-        <div class="text-sm text-white truncate">{{ agent.project_name }}</div>
+    <a href="/sessions/{{ agent.agent_id }}"
+       class="bg-gray-800 rounded border border-gray-700 p-3 flex items-center gap-3 hover:border-gray-500 transition-colors cursor-pointer no-underline">
+      <div class="w-2 h-2 rounded-full flex-shrink-0 {% if agent.state == 'typing' %}bg-green-400{% elif agent.state == 'reading' %}bg-blue-400{% elif agent.state == 'waiting' %}bg-yellow-400{% else %}bg-gray-500{% endif %}"></div>
+      <div class="min-w-0 flex-1">
+        <div class="text-sm text-white truncate">
+          {{ agent.project_name }}
+          {% if agent.is_subagent %}<span class="text-[10px] bg-blue-900 text-blue-300 px-1 rounded ml-1">sub</span>{% endif %}
+        </div>
         <div class="text-xs text-gray-400 truncate">{{ agent.tool_status or '대기 중' }}</div>
       </div>
-    </div>
+      <div class="flex flex-col items-end flex-shrink-0 gap-0.5">
+        {% if agent.model %}
+        <span class="text-[10px] text-gray-500">
+          {% if 'opus' in agent.model %}Opus{% elif 'sonnet' in agent.model %}Sonnet{% elif 'haiku' in agent.model %}Haiku{% else %}{{ agent.model }}{% endif %}
+        </span>
+        {% endif %}
+        {% if agent.last_activity_ts %}
+        <span class="text-[10px] text-gray-600">{{ agent.last_activity_ts }}</span>
+        {% endif %}
+      </div>
+    </a>
     {% endfor %}
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/pixel-office-movement.js"></script>
+<script src="/static/js/pixel-office-decorations.js"></script>
 <script src="/static/js/pixel-office.js"></script>
 <script>
 (function() {
