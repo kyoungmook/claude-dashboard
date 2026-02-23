@@ -15,115 +15,115 @@ var OfficeDecorations = (function () {
   function drawPlant(ctx, x, y) {
     // Ceramic pot (white/cream)
     ctx.fillStyle = '#f0e6d6';
-    ctx.fillRect(x + 1, y + 12, 12, 10);
+    ctx.fillRect(x + 1, y + 16, 16, 13);
     ctx.fillStyle = '#e8dcc8';
-    ctx.fillRect(x, y + 10, 14, 3);
+    ctx.fillRect(x, y + 13, 18, 4);
     // Pot rim highlight
     ctx.fillStyle = '#f5f0e8';
-    ctx.fillRect(x, y + 10, 14, 1);
+    ctx.fillRect(x, y + 13, 18, 1);
 
     // Soil
     ctx.fillStyle = '#6b4e37';
-    ctx.fillRect(x + 2, y + 10, 10, 2);
+    ctx.fillRect(x + 3, y + 13, 13, 3);
 
     // Leaves — bright green monstera
     ctx.fillStyle = '#4ade80';
-    ctx.fillRect(x + 5, y - 1, 4, 4);
-    ctx.fillRect(x + 3, y + 2, 8, 3);
-    ctx.fillRect(x + 1, y + 4, 12, 4);
+    ctx.fillRect(x + 7, y - 1, 5, 5);
+    ctx.fillRect(x + 4, y + 3, 11, 4);
+    ctx.fillRect(x + 1, y + 5, 16, 5);
     // Lighter leaf accents
     ctx.fillStyle = '#86efac';
-    ctx.fillRect(x + 5, y, 4, 2);
-    ctx.fillRect(x + 4, y + 3, 6, 2);
+    ctx.fillRect(x + 7, y, 5, 3);
+    ctx.fillRect(x + 5, y + 4, 8, 3);
     // Leaf vein
     ctx.fillStyle = '#22c55e';
-    ctx.fillRect(x + 6, y + 1, 2, 7);
+    ctx.fillRect(x + 8, y + 1, 3, 9);
 
     // Stem
     ctx.fillStyle = '#16a34a';
-    ctx.fillRect(x + 6, y + 8, 2, 3);
+    ctx.fillRect(x + 8, y + 10, 3, 4);
   }
 
   // ── Cactus plant (small desk cactus) ──
   function drawCactus(ctx, x, y) {
     // Small terracotta pot
     ctx.fillStyle = '#d4836b';
-    ctx.fillRect(x + 2, y + 10, 10, 8);
+    ctx.fillRect(x + 3, y + 13, 13, 11);
     ctx.fillStyle = '#e09a82';
-    ctx.fillRect(x + 1, y + 8, 12, 3);
+    ctx.fillRect(x + 1, y + 11, 16, 4);
     ctx.fillStyle = '#eab09c';
-    ctx.fillRect(x + 1, y + 8, 12, 1);
+    ctx.fillRect(x + 1, y + 11, 16, 1);
 
     // Soil
     ctx.fillStyle = '#8b6e5a';
-    ctx.fillRect(x + 3, y + 8, 8, 2);
+    ctx.fillRect(x + 4, y + 11, 11, 3);
 
     // Cactus body
     ctx.fillStyle = '#4ade80';
-    ctx.fillRect(x + 4, y, 6, 9);
+    ctx.fillRect(x + 5, y, 8, 12);
     // Cactus highlight
     ctx.fillStyle = '#86efac';
-    ctx.fillRect(x + 5, y + 1, 2, 7);
+    ctx.fillRect(x + 7, y + 1, 3, 9);
     // Cactus arms
     ctx.fillStyle = '#4ade80';
-    ctx.fillRect(x + 2, y + 2, 2, 4);
-    ctx.fillRect(x + 10, y + 3, 2, 3);
+    ctx.fillRect(x + 3, y + 3, 3, 5);
+    ctx.fillRect(x + 13, y + 4, 3, 4);
     // Spines (tiny dots)
     ctx.fillStyle = '#f0fdf4';
-    ctx.fillRect(x + 4, y + 2, 1, 1);
-    ctx.fillRect(x + 9, y + 4, 1, 1);
-    ctx.fillRect(x + 6, y + 6, 1, 1);
+    ctx.fillRect(x + 5, y + 3, 1, 1);
+    ctx.fillRect(x + 12, y + 5, 1, 1);
+    ctx.fillRect(x + 8, y + 8, 1, 1);
     // Little flower on top
     ctx.fillStyle = '#fb7185';
-    ctx.fillRect(x + 5, y - 2, 4, 2);
+    ctx.fillRect(x + 7, y - 3, 5, 3);
     ctx.fillStyle = '#fda4af';
-    ctx.fillRect(x + 6, y - 2, 2, 1);
+    ctx.fillRect(x + 8, y - 3, 3, 1);
   }
 
   // ── Coffee machine (modern) ──
   function drawCoffeeMachine(ctx, x, y) {
     // Body (sleek silver)
     ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(x, y, 20, 28);
+    ctx.fillRect(x, y, 26, 37);
     // Top highlight
     ctx.fillStyle = '#f3f4f6';
-    ctx.fillRect(x + 1, y + 1, 18, 2);
+    ctx.fillRect(x + 1, y + 1, 24, 3);
 
     // Water tank (top, translucent blue)
     ctx.fillStyle = '#93c5fd';
     ctx.globalAlpha = 0.5;
-    ctx.fillRect(x + 3, y + 4, 14, 8);
+    ctx.fillRect(x + 4, y + 5, 18, 11);
     ctx.globalAlpha = 1.0;
     ctx.fillStyle = '#60a5fa';
     ctx.globalAlpha = 0.4;
-    ctx.fillRect(x + 3, y + 8, 14, 4);
+    ctx.fillRect(x + 4, y + 11, 18, 5);
     ctx.globalAlpha = 1.0;
 
     // Drip area (dark recess)
     ctx.fillStyle = '#374151';
-    ctx.fillRect(x + 4, y + 14, 12, 8);
+    ctx.fillRect(x + 5, y + 18, 16, 11);
 
     // Cup (cute coffee mug)
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(x + 6, y + 18, 8, 4);
+    ctx.fillRect(x + 8, y + 24, 10, 5);
     // Coffee surface
     ctx.fillStyle = '#92400e';
-    ctx.fillRect(x + 7, y + 18, 6, 2);
+    ctx.fillRect(x + 9, y + 24, 8, 3);
     // Mug handle
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(x + 14, y + 19, 2, 2);
+    ctx.fillRect(x + 18, y + 25, 3, 3);
 
     // Base
     ctx.fillStyle = '#d1d5db';
-    ctx.fillRect(x - 1, y + 24, 22, 4);
+    ctx.fillRect(x - 1, y + 32, 28, 5);
 
     // Power light
     ctx.fillStyle = '#22c55e';
-    ctx.fillRect(x + 16, y + 6, 2, 2);
+    ctx.fillRect(x + 21, y + 8, 3, 3);
 
     // Button
     ctx.fillStyle = '#9ca3af';
-    ctx.fillRect(x + 16, y + 10, 2, 2);
+    ctx.fillRect(x + 21, y + 13, 3, 3);
   }
 
   // ── Carpet (warm woven rug) ──
@@ -134,38 +134,38 @@ var OfficeDecorations = (function () {
 
     // Border (warm accent)
     ctx.fillStyle = '#d4956b';
-    ctx.fillRect(x, y, w, 3);
-    ctx.fillRect(x, y + h - 3, w, 3);
-    ctx.fillRect(x, y, 3, h);
-    ctx.fillRect(x + w - 3, y, 3, h);
+    ctx.fillRect(x, y, w, 4);
+    ctx.fillRect(x, y + h - 4, w, 4);
+    ctx.fillRect(x, y, 4, h);
+    ctx.fillRect(x + w - 4, y, 4, h);
 
     // Inner border
     ctx.fillStyle = '#e8c4a8';
-    ctx.fillRect(x + 3, y + 3, w - 6, 1);
-    ctx.fillRect(x + 3, y + h - 4, w - 6, 1);
-    ctx.fillRect(x + 3, y + 3, 1, h - 6);
-    ctx.fillRect(x + w - 4, y + 3, 1, h - 6);
+    ctx.fillRect(x + 4, y + 4, w - 8, 1);
+    ctx.fillRect(x + 4, y + h - 5, w - 8, 1);
+    ctx.fillRect(x + 4, y + 4, 1, h - 8);
+    ctx.fillRect(x + w - 5, y + 4, 1, h - 8);
 
     // Woven diamond pattern
     ctx.fillStyle = '#e8c4a8';
     ctx.globalAlpha = 0.4;
-    for (var px = x + 10; px < x + w - 6; px += 16) {
-      for (var py2 = y + 8; py2 < y + h - 6; py2 += 12) {
+    for (var px = x + 13; px < x + w - 8; px += 21) {
+      for (var py2 = y + 11; py2 < y + h - 8; py2 += 16) {
         // Diamond shape
-        ctx.fillRect(px + 2, py2, 4, 1);
-        ctx.fillRect(px + 1, py2 + 1, 6, 1);
-        ctx.fillRect(px, py2 + 2, 8, 1);
-        ctx.fillRect(px + 1, py2 + 3, 6, 1);
-        ctx.fillRect(px + 2, py2 + 4, 4, 1);
+        ctx.fillRect(px + 3, py2, 5, 1);
+        ctx.fillRect(px + 1, py2 + 1, 8, 1);
+        ctx.fillRect(px, py2 + 2, 10, 2);
+        ctx.fillRect(px + 1, py2 + 4, 8, 1);
+        ctx.fillRect(px + 3, py2 + 5, 5, 1);
       }
     }
     ctx.globalAlpha = 1.0;
 
     // Fringe on short edges
     ctx.fillStyle = '#d4956b';
-    for (var fx = x + 4; fx < x + w - 2; fx += 4) {
-      ctx.fillRect(fx, y - 2, 2, 2);
-      ctx.fillRect(fx, y + h, 2, 2);
+    for (var fx = x + 5; fx < x + w - 3; fx += 5) {
+      ctx.fillRect(fx, y - 3, 3, 3);
+      ctx.fillRect(fx, y + h, 3, 3);
     }
   }
 
@@ -173,61 +173,61 @@ var OfficeDecorations = (function () {
   function drawWhiteboard(ctx, x, y) {
     // Frame
     ctx.fillStyle = '#d1d5db';
-    ctx.fillRect(x - 2, y - 2, 44, 28);
+    ctx.fillRect(x - 3, y - 3, 58, 37);
     // Board surface
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(x, y, 40, 24);
+    ctx.fillRect(x, y, 52, 32);
 
     // Scribbles on board (colored markers)
     ctx.fillStyle = '#ef4444';
-    ctx.fillRect(x + 4, y + 4, 12, 1);
-    ctx.fillRect(x + 4, y + 6, 8, 1);
+    ctx.fillRect(x + 5, y + 5, 16, 1);
+    ctx.fillRect(x + 5, y + 8, 11, 1);
 
     ctx.fillStyle = '#3b82f6';
-    ctx.fillRect(x + 4, y + 10, 16, 1);
-    ctx.fillRect(x + 4, y + 12, 10, 1);
+    ctx.fillRect(x + 5, y + 13, 21, 1);
+    ctx.fillRect(x + 5, y + 16, 13, 1);
 
     ctx.fillStyle = '#22c55e';
-    ctx.fillRect(x + 4, y + 16, 14, 1);
+    ctx.fillRect(x + 5, y + 21, 19, 1);
 
     // Sticky note on board
     ctx.fillStyle = '#fef08a';
-    ctx.fillRect(x + 26, y + 4, 10, 10);
+    ctx.fillRect(x + 34, y + 5, 13, 13);
     ctx.fillStyle = '#fbbf24';
-    ctx.fillRect(x + 27, y + 6, 6, 1);
-    ctx.fillRect(x + 27, y + 8, 8, 1);
+    ctx.fillRect(x + 36, y + 8, 8, 1);
+    ctx.fillRect(x + 36, y + 11, 10, 1);
 
     // Marker tray
     ctx.fillStyle = '#9ca3af';
-    ctx.fillRect(x + 2, y + 24, 36, 3);
+    ctx.fillRect(x + 3, y + 32, 48, 4);
     // Markers
     ctx.fillStyle = '#ef4444';
-    ctx.fillRect(x + 6, y + 24, 6, 2);
+    ctx.fillRect(x + 8, y + 32, 8, 3);
     ctx.fillStyle = '#3b82f6';
-    ctx.fillRect(x + 14, y + 24, 6, 2);
+    ctx.fillRect(x + 19, y + 32, 8, 3);
     ctx.fillStyle = '#22c55e';
-    ctx.fillRect(x + 22, y + 24, 6, 2);
+    ctx.fillRect(x + 29, y + 32, 8, 3);
   }
 
   // ── Coffee cup on desk (standalone decoration) ──
   function drawCoffeeCup(ctx, x, y) {
     // Saucer
     ctx.fillStyle = '#f0e6d6';
-    ctx.fillRect(x - 1, y + 6, 10, 2);
+    ctx.fillRect(x - 1, y + 8, 13, 3);
     // Cup body
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(x, y, 8, 7);
+    ctx.fillRect(x, y, 11, 9);
     // Coffee
     ctx.fillStyle = '#92400e';
-    ctx.fillRect(x + 1, y + 1, 6, 3);
+    ctx.fillRect(x + 1, y + 1, 8, 4);
     // Handle
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(x + 8, y + 2, 2, 3);
+    ctx.fillRect(x + 11, y + 3, 3, 4);
     // Steam
     ctx.fillStyle = '#d1d5db';
     ctx.globalAlpha = 0.4;
-    ctx.fillRect(x + 2, y - 3, 1, 2);
-    ctx.fillRect(x + 5, y - 4, 1, 3);
+    ctx.fillRect(x + 3, y - 4, 2, 3);
+    ctx.fillRect(x + 7, y - 5, 2, 4);
     ctx.globalAlpha = 1.0;
   }
 
@@ -235,56 +235,56 @@ var OfficeDecorations = (function () {
   function drawPhotoFrame(ctx, x, y) {
     // Frame
     ctx.fillStyle = '#b8956e';
-    ctx.fillRect(x, y, 16, 14);
+    ctx.fillRect(x, y, 21, 19);
     // Inner matte
     ctx.fillStyle = '#f5f0e8';
-    ctx.fillRect(x + 1, y + 1, 14, 12);
+    ctx.fillRect(x + 2, y + 2, 17, 15);
     // Photo (landscape scene)
     ctx.fillStyle = '#87ceeb';
-    ctx.fillRect(x + 2, y + 2, 12, 5);
+    ctx.fillRect(x + 3, y + 3, 15, 7);
     ctx.fillStyle = '#4ade80';
-    ctx.fillRect(x + 2, y + 7, 12, 5);
+    ctx.fillRect(x + 3, y + 10, 15, 6);
     // Sun
     ctx.fillStyle = '#fbbf24';
-    ctx.fillRect(x + 10, y + 3, 3, 3);
+    ctx.fillRect(x + 13, y + 4, 4, 4);
   }
 
   function drawAll(ctx, canvasW, canvasH) {
     // Carpet area in center
-    var carpetW = Math.min(canvasW * 0.6, 400);
-    var carpetH = 80;
+    var carpetW = Math.min(canvasW * 0.6, 530);
+    var carpetH = 106;
     var carpetX = (canvasW - carpetW) / 2;
-    var carpetY = canvasH - carpetH - 30;
+    var carpetY = canvasH - carpetH - 40;
     drawCarpet(ctx, carpetX, carpetY, carpetW, carpetH);
 
     // Plants near edges (varied species)
     if (canvasW > 300) {
-      drawPlant(ctx, 20, canvasH - 60);
-      drawCactus(ctx, canvasW - 36, canvasH - 58);
+      drawPlant(ctx, 20, canvasH - 78);
+      drawCactus(ctx, canvasW - 44, canvasH - 76);
     }
     if (canvasW > 600) {
       drawCactus(ctx, 22, 70);
-      drawPlant(ctx, canvasW - 38, 72);
+      drawPlant(ctx, canvasW - 44, 72);
     }
 
     // Coffee machine on right wall area
     if (canvasW > 400) {
-      drawCoffeeMachine(ctx, canvasW - 40, 68);
+      drawCoffeeMachine(ctx, canvasW - 48, 64);
     }
 
     // Whiteboard on wall (left side)
     if (canvasW > 500) {
-      drawWhiteboard(ctx, 20, 14);
+      drawWhiteboard(ctx, 20, 10);
     }
 
     // Photo frame on wall (right of center)
     if (canvasW > 450) {
-      drawPhotoFrame(ctx, canvasW - 80, 20);
+      drawPhotoFrame(ctx, canvasW - 90, 18);
     }
 
     // Coffee cup near bottom left
     if (canvasW > 350) {
-      drawCoffeeCup(ctx, 50, canvasH - 30);
+      drawCoffeeCup(ctx, 50, canvasH - 40);
     }
   }
 
@@ -304,7 +304,7 @@ var OfficeDecorations = (function () {
 /* ── Wall Clock ──────────────────────────────────────────── */
 
 var WallClock = (function () {
-  var CLOCK_SIZE = 26;
+  var CLOCK_SIZE = 34;
 
   function draw(ctx, x, y, now) {
     var date = new Date(now);

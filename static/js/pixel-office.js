@@ -307,7 +307,7 @@ var CharacterFactory = (function () {
 /* ── Sprite Engine ──────────────────────────────────────────── */
 
 var SpriteEngine = (function () {
-  var PIXEL_SIZE = 3;
+  var PIXEL_SIZE = 4;
   var FRAME_DURATION_MS = 350;
 
   function drawSprite(ctx, frame, x, y) {
@@ -333,7 +333,7 @@ var SpriteEngine = (function () {
     return frames[idx];
   }
 
-  var SUB_PIXEL_SIZE = 2;
+  var SUB_PIXEL_SIZE = 3;
 
   function drawSpriteScaled(ctx, frame, x, y, pxSize) {
     for (var r = 0; r < frame.length; r++) {
@@ -364,14 +364,14 @@ var SpriteEngine = (function () {
 /* ── Office Renderer ────────────────────────────────────────── */
 
 var OfficeRenderer = (function () {
-  var DESK_WIDTH = 70;
-  var DESK_HEIGHT = 32;
-  var DESK_SPACING_X = 140;
-  var DESK_SPACING_Y = 120;
+  var DESK_WIDTH = 90;
+  var DESK_HEIGHT = 42;
+  var DESK_SPACING_X = 175;
+  var DESK_SPACING_Y = 155;
   var DESK_START_X = 90;
-  var DESK_START_Y = 110;
-  var MONITOR_W = 22;
-  var MONITOR_H = 16;
+  var DESK_START_Y = 100;
+  var MONITOR_W = 28;
+  var MONITOR_H = 20;
 
   function getColumns(canvasWidth) {
     if (canvasWidth < 500) return 2;
@@ -531,71 +531,71 @@ var OfficeRenderer = (function () {
     // ── Chair (ergonomic office chair) ──
     // Chair legs (star base)
     ctx.fillStyle = '#888888';
-    ctx.fillRect(x + 14, y + DESK_HEIGHT + 34, 2, 4);
-    ctx.fillRect(x + DESK_WIDTH - 16, y + DESK_HEIGHT + 34, 2, 4);
-    ctx.fillRect(x + DESK_WIDTH / 2 - 1, y + DESK_HEIGHT + 34, 2, 4);
+    ctx.fillRect(x + 18, y + DESK_HEIGHT + 44, 3, 5);
+    ctx.fillRect(x + DESK_WIDTH - 21, y + DESK_HEIGHT + 44, 3, 5);
+    ctx.fillRect(x + DESK_WIDTH / 2 - 1, y + DESK_HEIGHT + 44, 3, 5);
     // Wheels
     ctx.fillStyle = '#555555';
-    ctx.fillRect(x + 13, y + DESK_HEIGHT + 37, 4, 2);
-    ctx.fillRect(x + DESK_WIDTH - 17, y + DESK_HEIGHT + 37, 4, 2);
-    ctx.fillRect(x + DESK_WIDTH / 2 - 2, y + DESK_HEIGHT + 37, 4, 2);
+    ctx.fillRect(x + 17, y + DESK_HEIGHT + 48, 5, 3);
+    ctx.fillRect(x + DESK_WIDTH - 22, y + DESK_HEIGHT + 48, 5, 3);
+    ctx.fillRect(x + DESK_WIDTH / 2 - 2, y + DESK_HEIGHT + 48, 5, 3);
     // Chair stem (pneumatic lift)
     ctx.fillStyle = '#999999';
-    ctx.fillRect(x + DESK_WIDTH / 2 - 1, y + DESK_HEIGHT + 28, 2, 7);
+    ctx.fillRect(x + DESK_WIDTH / 2 - 1, y + DESK_HEIGHT + 36, 3, 9);
     // Seat cushion
     var chairColor = isActive ? '#4a90d9' : '#6b8cae';
     ctx.fillStyle = chairColor;
-    ctx.fillRect(x + 8, y + DESK_HEIGHT + 22, DESK_WIDTH - 16, 8);
+    ctx.fillRect(x + 10, y + DESK_HEIGHT + 28, DESK_WIDTH - 20, 10);
     // Seat highlight
     ctx.fillStyle = isActive ? '#5aa0e9' : '#7b9cbe';
-    ctx.fillRect(x + 8, y + DESK_HEIGHT + 22, DESK_WIDTH - 16, 2);
+    ctx.fillRect(x + 10, y + DESK_HEIGHT + 28, DESK_WIDTH - 20, 3);
     // Backrest
     ctx.fillStyle = chairColor;
-    ctx.fillRect(x + 12, y + DESK_HEIGHT + 14, DESK_WIDTH - 24, 9);
+    ctx.fillRect(x + 16, y + DESK_HEIGHT + 18, DESK_WIDTH - 32, 12);
     // Backrest highlight
     ctx.fillStyle = isActive ? '#5aa0e9' : '#7b9cbe';
-    ctx.fillRect(x + 12, y + DESK_HEIGHT + 14, DESK_WIDTH - 24, 2);
+    ctx.fillRect(x + 16, y + DESK_HEIGHT + 18, DESK_WIDTH - 32, 3);
     // Armrests
     ctx.fillStyle = '#888888';
-    ctx.fillRect(x + 6, y + DESK_HEIGHT + 20, 4, 3);
-    ctx.fillRect(x + DESK_WIDTH - 10, y + DESK_HEIGHT + 20, 4, 3);
+    ctx.fillRect(x + 8, y + DESK_HEIGHT + 26, 5, 4);
+    ctx.fillRect(x + DESK_WIDTH - 13, y + DESK_HEIGHT + 26, 5, 4);
 
     // ── Desk ──
     // Desk legs (tapered modern style)
     ctx.fillStyle = '#a38260';
-    ctx.fillRect(x + 4, y + DESK_HEIGHT, 3, 10);
-    ctx.fillRect(x + DESK_WIDTH - 7, y + DESK_HEIGHT, 3, 10);
+    ctx.fillRect(x + 5, y + DESK_HEIGHT, 4, 13);
+    ctx.fillRect(x + DESK_WIDTH - 9, y + DESK_HEIGHT, 4, 13);
     // Leg feet
     ctx.fillStyle = '#8b7355';
-    ctx.fillRect(x + 3, y + DESK_HEIGHT + 9, 5, 2);
-    ctx.fillRect(x + DESK_WIDTH - 8, y + DESK_HEIGHT + 9, 5, 2);
+    ctx.fillRect(x + 4, y + DESK_HEIGHT + 12, 6, 3);
+    ctx.fillRect(x + DESK_WIDTH - 10, y + DESK_HEIGHT + 12, 6, 3);
 
     // Desk surface (warm light wood)
     ctx.fillStyle = '#c9a87c';
     ctx.fillRect(x, y, DESK_WIDTH, DESK_HEIGHT);
     // Desktop wood grain hint
     ctx.fillStyle = '#c0a074';
-    ctx.fillRect(x + 8, y + 6, 20, 1);
-    ctx.fillRect(x + 35, y + 12, 18, 1);
-    ctx.fillRect(x + 12, y + 20, 25, 1);
+    ctx.fillRect(x + 10, y + 8, 26, 1);
+    ctx.fillRect(x + 46, y + 16, 24, 1);
+    ctx.fillRect(x + 16, y + 26, 33, 1);
     // Desk front edge (rounded feel)
     ctx.fillStyle = '#d4b48f';
-    ctx.fillRect(x, y, DESK_WIDTH, 3);
+    ctx.fillRect(x, y, DESK_WIDTH, 4);
     // Desk bottom edge shadow
     ctx.fillStyle = '#b8956e';
-    ctx.fillRect(x, y + DESK_HEIGHT - 2, DESK_WIDTH, 2);
+    ctx.fillRect(x, y + DESK_HEIGHT - 3, DESK_WIDTH, 3);
 
     // ── Monitor ──
     var monX = x + (DESK_WIDTH - MONITOR_W) / 2;
-    var monY = y - MONITOR_H - 6;
+    var monY = y - MONITOR_H - 8;
     // Monitor stand arm
     ctx.fillStyle = '#555555';
-    ctx.fillRect(monX + MONITOR_W / 2 - 1, y - 6, 2, 6);
+    ctx.fillRect(monX + MONITOR_W / 2 - 1, y - 8, 3, 8);
     // Monitor stand base
     ctx.fillStyle = '#666666';
-    ctx.fillRect(monX + MONITOR_W / 2 - 5, y - 2, 10, 2);
+    ctx.fillRect(monX + MONITOR_W / 2 - 7, y - 3, 14, 3);
     ctx.fillStyle = '#777777';
-    ctx.fillRect(monX + MONITOR_W / 2 - 4, y - 2, 8, 1);
+    ctx.fillRect(monX + MONITOR_W / 2 - 5, y - 3, 10, 1);
 
     // Monitor bezel (thin, dark)
     ctx.fillStyle = '#333333';
@@ -609,7 +609,7 @@ var OfficeRenderer = (function () {
       var glowColors = { typing: '#22c55e', reading: '#3b82f6', waiting: '#eab308' };
       ctx.fillStyle = glowColors[agentState] || '#22c55e';
       ctx.globalAlpha = 0.10;
-      ctx.fillRect(monX - 3, monY - 3, MONITOR_W + 6, MONITOR_H + 6);
+      ctx.fillRect(monX - 4, monY - 4, MONITOR_W + 8, MONITOR_H + 8);
       ctx.globalAlpha = 1.0;
     }
 
@@ -628,32 +628,32 @@ var OfficeRenderer = (function () {
     // ── Keyboard (always visible for equipped desks) ──
     // Keyboard body
     ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(x + DESK_WIDTH / 2 - 13, y + 10, 26, 9);
+    ctx.fillRect(x + DESK_WIDTH / 2 - 17, y + 13, 34, 12);
     // Keyboard border
     ctx.fillStyle = '#d1d5db';
-    ctx.fillRect(x + DESK_WIDTH / 2 - 13, y + 10, 26, 1);
-    ctx.fillRect(x + DESK_WIDTH / 2 - 13, y + 18, 26, 1);
+    ctx.fillRect(x + DESK_WIDTH / 2 - 17, y + 13, 34, 1);
+    ctx.fillRect(x + DESK_WIDTH / 2 - 17, y + 24, 34, 1);
     // Key rows
     ctx.fillStyle = '#f9fafb';
-    for (var ki = 0; ki < 6; ki++) {
-      ctx.fillRect(x + DESK_WIDTH / 2 - 11 + ki * 4, y + 12, 3, 2);
+    for (var ki = 0; ki < 7; ki++) {
+      ctx.fillRect(x + DESK_WIDTH / 2 - 14 + ki * 5, y + 16, 3, 2);
     }
-    for (var ki2 = 0; ki2 < 5; ki2++) {
-      ctx.fillRect(x + DESK_WIDTH / 2 - 9 + ki2 * 4, y + 15, 3, 2);
+    for (var ki2 = 0; ki2 < 6; ki2++) {
+      ctx.fillRect(x + DESK_WIDTH / 2 - 12 + ki2 * 5, y + 20, 3, 2);
     }
 
     // ── Mouse (small, right side of keyboard) ──
     ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(x + DESK_WIDTH / 2 + 16, y + 12, 5, 6);
+    ctx.fillRect(x + DESK_WIDTH / 2 + 21, y + 16, 7, 8);
     ctx.fillStyle = '#d1d5db';
-    ctx.fillRect(x + DESK_WIDTH / 2 + 17, y + 12, 1, 3);
+    ctx.fillRect(x + DESK_WIDTH / 2 + 22, y + 16, 2, 4);
   }
 
   function drawLabel(ctx, x, y, text, color) {
     ctx.font = '11px monospace';
     ctx.textAlign = 'center';
     ctx.fillStyle = color || '#9ca3af';
-    ctx.fillText(text, x + DESK_WIDTH / 2, y + DESK_HEIGHT + 52);
+    ctx.fillText(text, x + DESK_WIDTH / 2, y + DESK_HEIGHT + 66);
   }
 
   function drawBubble(ctx, x, y, text, state, alpha) {
@@ -685,7 +685,7 @@ var OfficeRenderer = (function () {
     var bw = metrics.width + pad * 2;
     var bh = 18;
     var bx = x + DESK_WIDTH / 2 - bw / 2;
-    var by = y - MONITOR_H - 30;
+    var by = y - MONITOR_H - 38;
 
     // Bubble background
     ctx.fillStyle = bgBase + '0.92)';
@@ -728,11 +728,27 @@ var OfficeRenderer = (function () {
       idle: '#6b7280',
     };
     var cx = x + DESK_WIDTH / 2;
-    var cy = y + DESK_HEIGHT + 58;
+    var cy = y + DESK_HEIGHT + 74;
     ctx.beginPath();
     ctx.arc(cx, cy, 3, 0, Math.PI * 2);
     ctx.fillStyle = colors[state] || colors.idle;
     ctx.fill();
+  }
+
+  function drawPartition(ctx, x, y, width, height, teamName) {
+    ctx.fillStyle = 'rgba(230, 240, 255, 0.15)';
+    ctx.fillRect(x, y, width, height);
+
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(x + 0.5, y + 0.5, width - 1, height - 1);
+    ctx.setLineDash([]);
+
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'left';
+    ctx.fillText('\u26A1 ' + teamName, x + 8, y + 14);
   }
 
   return {
@@ -742,9 +758,13 @@ var OfficeRenderer = (function () {
     drawBubble: drawBubble,
     drawStatusDot: drawStatusDot,
     drawHighlight: drawHighlight,
+    drawPartition: drawPartition,
     getDeskPosition: getDeskPosition,
+    getColumns: getColumns,
     DESK_WIDTH: DESK_WIDTH,
     DESK_HEIGHT: DESK_HEIGHT,
+    DESK_SPACING_X: DESK_SPACING_X,
+    DESK_SPACING_Y: DESK_SPACING_Y,
     MONITOR_W: MONITOR_W,
     MONITOR_H: MONITOR_H,
   };
@@ -940,6 +960,7 @@ PixelOffice.prototype._updateAgents = function (agentDataList) {
         model: data.model || '',
         isSubagent: existingSub,
         lastActivityTs: data.last_activity_ts || '',
+        teamName: data.team_name || '',
         movement: mv,
       }));
     } else {
@@ -962,6 +983,7 @@ PixelOffice.prototype._updateAgents = function (agentDataList) {
         model: data.model || '',
         isSubagent: isSub,
         lastActivityTs: data.last_activity_ts || '',
+        teamName: data.team_name || '',
         character: character,
         paletteIdx: paletteIdx,
         movement: CharacterMovement.createMovementState(seatPos.x, seatPos.y, true),
@@ -1023,12 +1045,15 @@ PixelOffice.prototype._updatePanel = function (agentDataList) {
     var subBadge = a.is_subagent
       ? '<span class="text-[10px] bg-blue-900 text-blue-300 px-1 rounded ml-1">sub</span>'
       : '';
+    var teamBadge = a.team_name
+      ? '<span class="text-[10px] bg-indigo-900 text-indigo-300 px-1 rounded ml-1">' + _escapeHtml(a.team_name) + '</span>'
+      : '';
 
     html += '<a href="' + _escapeHtml(sessionUrl) + '" '
       + 'class="bg-gray-800 rounded border border-gray-700 p-3 flex items-center gap-3 hover:border-gray-500 hover:bg-gray-750 transition-colors cursor-pointer no-underline">'
       + '<div class="w-2 h-2 rounded-full flex-shrink-0 ' + dotClass + '"></div>'
       + '<div class="min-w-0 flex-1">'
-      + '<div class="text-sm text-white truncate">' + _escapeHtml(a.project_name) + subBadge + '</div>'
+      + '<div class="text-sm text-white truncate">' + _escapeHtml(a.project_name) + subBadge + teamBadge + '</div>'
       + '<div class="text-xs text-gray-400 truncate">' + _escapeHtml(a.tool_status || '대기 중') + '</div>'
       + '</div>'
       + '<div class="flex flex-col items-end flex-shrink-0 gap-0.5">'
@@ -1117,6 +1142,48 @@ PixelOffice.prototype._updateMovement = function (now) {
   this._fadingAgents = activeFading;
 };
 
+PixelOffice.prototype._drawTeamPartitions = function (ctx, canvasW, canvasH) {
+  // Group agents by team_name
+  var teams = {};
+  this.agents.forEach(function (agent) {
+    if (!agent.teamName) return;
+    if (!teams[agent.teamName]) {
+      teams[agent.teamName] = [];
+    }
+    teams[agent.teamName].push(agent.deskIndex);
+  });
+
+  var teamNames = Object.keys(teams);
+  if (teamNames.length === 0) return;
+
+  for (var i = 0; i < teamNames.length; i++) {
+    var teamName = teamNames[i];
+    var indices = teams[teamName];
+    indices.sort(function (a, b) { return a - b; });
+
+    // Calculate bounding box around all team desks
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (var j = 0; j < indices.length; j++) {
+      var pos = OfficeRenderer.getDeskPosition(indices[j], canvasW);
+      if (pos.x < minX) minX = pos.x;
+      if (pos.y < minY) minY = pos.y;
+      var right = pos.x + OfficeRenderer.DESK_WIDTH;
+      var bottom = pos.y + OfficeRenderer.DESK_SPACING_Y;
+      if (right > maxX) maxX = right;
+      if (bottom > maxY) maxY = bottom;
+    }
+
+    // Add padding around the bounding box
+    var pad = 20;
+    var partX = minX - pad;
+    var partY = minY - OfficeRenderer.MONITOR_H - 10 - pad;
+    var partW = maxX - minX + pad * 2;
+    var partH = maxY - minY + OfficeRenderer.MONITOR_H + 10 + pad;
+
+    OfficeRenderer.drawPartition(ctx, partX, partY, partW, partH, teamName);
+  }
+};
+
 PixelOffice.prototype._render = function (now) {
   var ctx = this.ctx;
   var dpr = window.devicePixelRatio || 1;
@@ -1137,6 +1204,9 @@ PixelOffice.prototype._render = function (now) {
   if (typeof WallClock !== 'undefined') {
     WallClock.draw(ctx, w / 2 - WallClock.CLOCK_SIZE / 2, 16, now);
   }
+
+  // Draw team partitions (behind desks)
+  this._drawTeamPartitions(ctx, w, h);
 
   // Draw all desks with animated monitors (background layer)
   this.agents.forEach(function (agent) {

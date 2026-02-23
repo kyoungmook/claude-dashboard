@@ -511,3 +511,207 @@ class TestSubagentDetection:
         assert len(result) == 5
         _, _, _, _, is_subagent = result
         assert is_subagent is False
+
+
+def _make_team_config(team_name: str, lead_session_id: str, members: list[dict]) -> dict:
+    return {
+        "name": team_name,
+        "leadSessionId": lead_session_id,
+        "members": members,
+    }
+
+
+class TestTeamDetection:
+    def test_team_name_set_when_team_active(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _get_active_agents_impl
+
+        # Create project dir with a session matching the team lead
+        project_dir = tmp_path / "projects" / "my-proj"
+        project_dir.mkdir(parents=True)
+        lead_session_id = "lead-session-abc"
+        jsonl = project_dir / f"{lead_session_id}.jsonl"
+        _write_jsonl(jsonl, [_make_assistant_with_tool("Edit")])
+
+        # Create team config
+        teams_dir = tmp_path / "teams"
+        team_dir = teams_dir / "my-team"
+        team_dir.mkdir(parents=True)
+        config = _make_team_config("my-team", lead_session_id, [
+            {"name": "team-lead", "agentId": "team-lead@my-team"},
+        ])
+        (team_dir / "config.json").write_text(json.dumps(config))
+
+        result = _get_active_agents_impl(
+            tmp_path / "projects", teams_dir=teams_dir
+        )
+        assert len(result) == 1
+        assert result[0].team_name == "my-team"
+        assert result[0].session_id == lead_session_id
+
+    def test_no_team_when_no_teams_dir(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _get_active_agents_impl
+
+        project_dir = tmp_path / "projects" / "proj"
+        project_dir.mkdir(parents=True)
+        jsonl = project_dir / "sess1.jsonl"
+        _write_jsonl(jsonl, [_make_assistant_with_tool("Edit")])
+
+        # Pass a nonexistent teams_dir
+        result = _get_active_agents_impl(
+            tmp_path / "projects", teams_dir=tmp_path / "no-teams"
+        )
+        assert len(result) == 1
+        assert result[0].team_name == ""
+
+    def test_team_members_grouped_consecutive_desks(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _get_active_agents_impl
+
+        project_dir = tmp_path / "projects" / "proj"
+        project_dir.mkdir(parents=True)
+
+        lead_session_id = "lead-sess-123"
+        # Create lead session
+        lead_jsonl = project_dir / f"{lead_session_id}.jsonl"
+        _write_jsonl(lead_jsonl, [_make_assistant_with_tool("Task")])
+
+        # Create subagent sessions under lead's subagents dir
+        subagents_dir = project_dir / lead_session_id / "subagents"
+        subagents_dir.mkdir(parents=True)
+        sub1 = subagents_dir / "agent-sub1.jsonl"
+        _write_jsonl(sub1, [{
+            "type": "assistant",
+            "message": {
+                "content": [{"type": "tool_use", "id": "t1", "name": "Edit", "input": {}}],
+                "model": "claude-sonnet-4-5-20250929",
+            },
+            "parentToolUseID": "parent_xyz",
+            "timestamp": "2026-02-23T10:00:00Z",
+        }])
+        sub2 = subagents_dir / "agent-sub2.jsonl"
+        _write_jsonl(sub2, [{
+            "type": "assistant",
+            "message": {
+                "content": [{"type": "tool_use", "id": "t2", "name": "Read", "input": {}}],
+                "model": "claude-sonnet-4-5-20250929",
+            },
+            "parentToolUseID": "parent_xyz2",
+            "timestamp": "2026-02-23T10:00:01Z",
+        }])
+
+        # Create a solo agent (not in any team)
+        solo_jsonl = project_dir / "solo-agent.jsonl"
+        _write_jsonl(solo_jsonl, [_make_assistant_with_tool("Bash")])
+
+        # Create team config
+        teams_dir = tmp_path / "teams"
+        team_dir = teams_dir / "alpha-team"
+        team_dir.mkdir(parents=True)
+        config = _make_team_config("alpha-team", lead_session_id, [
+            {"name": "team-lead", "agentId": "team-lead@alpha-team"},
+            {"name": "worker-1", "agentId": "worker-1@alpha-team"},
+            {"name": "worker-2", "agentId": "worker-2@alpha-team"},
+        ])
+        (team_dir / "config.json").write_text(json.dumps(config))
+
+        result = _get_active_agents_impl(
+            tmp_path / "projects", teams_dir=teams_dir
+        )
+
+        # All team members should have team_name set
+        team_agents = [a for a in result if a.team_name == "alpha-team"]
+        solo_agents = [a for a in result if a.team_name == ""]
+        assert len(team_agents) == 3  # lead + 2 subagents
+        assert len(solo_agents) == 1
+
+        # Team members should have consecutive desk indices
+        team_desks = sorted(a.desk_index for a in team_agents)
+        assert team_desks == [0, 1, 2]
+
+        # Solo agent should come after team members
+        assert solo_agents[0].desk_index == 3
+
+    def test_subagent_in_subdir_gets_team_name(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _get_active_agents_impl
+
+        project_dir = tmp_path / "projects" / "proj"
+        project_dir.mkdir(parents=True)
+
+        lead_session_id = "lead-abc"
+        # Create subagent in subdir (no lead session file needed)
+        subagents_dir = project_dir / lead_session_id / "subagents"
+        subagents_dir.mkdir(parents=True)
+        sub_jsonl = subagents_dir / "agent-worker.jsonl"
+        _write_jsonl(sub_jsonl, [{
+            "type": "assistant",
+            "message": {
+                "content": [{"type": "tool_use", "id": "t1", "name": "Edit", "input": {}}],
+                "model": "claude-sonnet-4-5-20250929",
+            },
+            "parentToolUseID": "parent_abc",
+            "timestamp": "2026-02-23T10:00:00Z",
+        }])
+
+        teams_dir = tmp_path / "teams"
+        team_dir = teams_dir / "beta-team"
+        team_dir.mkdir(parents=True)
+        config = _make_team_config("beta-team", lead_session_id, [])
+        (team_dir / "config.json").write_text(json.dumps(config))
+
+        result = _get_active_agents_impl(
+            tmp_path / "projects", teams_dir=teams_dir
+        )
+        assert len(result) == 1
+        assert result[0].team_name == "beta-team"
+        assert result[0].is_subagent is True
+
+    def test_get_active_team_memberships_empty_teams_dir(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _get_active_team_memberships
+
+        result = _get_active_team_memberships(tmp_path / "nonexistent")
+        assert result == {}
+
+    def test_get_active_team_memberships_reads_config(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _get_active_team_memberships
+
+        teams_dir = tmp_path / "teams"
+        team_dir = teams_dir / "test-team"
+        team_dir.mkdir(parents=True)
+        config = _make_team_config("test-team", "session-xyz", [
+            {"name": "lead", "agentId": "lead@test-team"},
+        ])
+        (team_dir / "config.json").write_text(json.dumps(config))
+
+        result = _get_active_team_memberships(teams_dir)
+        assert result == {"session-xyz": "test-team"}
+
+    def test_get_active_team_memberships_corrupt_config(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _get_active_team_memberships
+
+        teams_dir = tmp_path / "teams"
+        team_dir = teams_dir / "bad-team"
+        team_dir.mkdir(parents=True)
+        (team_dir / "config.json").write_text("not valid json{{{")
+
+        result = _get_active_team_memberships(teams_dir)
+        assert result == {}
+
+    def test_resolve_team_name_for_lead_session(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _resolve_team_name
+
+        file_path = tmp_path / "projects" / "proj" / "lead-session.jsonl"
+        memberships = {"lead-session": "my-team"}
+        assert _resolve_team_name(file_path, memberships) == "my-team"
+
+    def test_resolve_team_name_for_subagent(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _resolve_team_name
+
+        file_path = tmp_path / "projects" / "proj" / "lead-sess" / "subagents" / "agent-worker.jsonl"
+        memberships = {"lead-sess": "team-x"}
+        assert _resolve_team_name(file_path, memberships) == "team-x"
+
+    def test_resolve_team_name_no_match(self, tmp_path: Path):
+        from app.services.pixel_agents_service import _resolve_team_name
+
+        file_path = tmp_path / "projects" / "proj" / "random-session.jsonl"
+        memberships = {"other-session": "some-team"}
+        assert _resolve_team_name(file_path, memberships) == ""

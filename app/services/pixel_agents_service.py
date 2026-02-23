@@ -5,11 +5,13 @@ import time
 from pathlib import Path
 from typing import Any
 
-from app.config import PROJECTS_DIR, utc_to_kst
+from app.config import CLAUDE_DIR, PROJECTS_DIR, utc_to_kst
 from app.models.schemas import PixelAgentState
 from app.services.cache import ttl_cache
 
 ACTIVE_THRESHOLD_SECONDS = 300
+
+TEAMS_DIR = CLAUDE_DIR / "teams"
 
 _TAIL_BYTES = 4096
 
@@ -47,6 +49,30 @@ def _project_name_from_dir(dir_name: str) -> str:
     return name or dir_name.lstrip("-")
 
 
+def _get_active_team_memberships(
+    teams_dir: Path,
+) -> dict[str, str]:
+    """Return {session_id: team_name} for active team lead sessions."""
+    memberships: dict[str, str] = {}
+    if not teams_dir.is_dir():
+        return memberships
+    for team_dir in teams_dir.iterdir():
+        if not team_dir.is_dir():
+            continue
+        config_path = team_dir / "config.json"
+        if not config_path.is_file():
+            continue
+        try:
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+            team_name = data.get("name", team_dir.name)
+            lead_session_id = data.get("leadSessionId", "")
+            if lead_session_id:
+                memberships[lead_session_id] = team_name
+        except (json.JSONDecodeError, OSError):
+            continue
+    return memberships
+
+
 def _find_active_jsonl_files(
     projects_dir: Path,
 ) -> list[tuple[Path, str, float]]:
@@ -65,6 +91,17 @@ def _find_active_jsonl_files(
                     active.append((jsonl_file, project_name, stat.st_mtime))
             except OSError:
                 continue
+        # Also scan subagent directories ({session_id}/subagents/*.jsonl)
+        for subagents_dir in project_dir.glob("*/subagents"):
+            if not subagents_dir.is_dir():
+                continue
+            for jsonl_file in subagents_dir.glob("*.jsonl"):
+                try:
+                    stat = jsonl_file.stat()
+                    if now - stat.st_mtime < ACTIVE_THRESHOLD_SECONDS:
+                        active.append((jsonl_file, project_name, stat.st_mtime))
+                except OSError:
+                    continue
     return active
 
 
@@ -159,14 +196,47 @@ def _scan_for_parent_tool_use_id(lines: list[str]) -> bool:
     return False
 
 
+def _resolve_team_name(
+    file_path: Path,
+    team_memberships: dict[str, str],
+) -> str:
+    """Determine team name for a JSONL file based on its path and team config."""
+    # Check if this file is a team lead session
+    session_id = file_path.stem
+    if session_id in team_memberships:
+        return team_memberships[session_id]
+    # Check if this file is under a team lead's subagents directory
+    # Path pattern: {project_dir}/{lead_session_id}/subagents/{agent}.jsonl
+    if file_path.parent.name == "subagents":
+        lead_session_id = file_path.parent.parent.name
+        if lead_session_id in team_memberships:
+            return team_memberships[lead_session_id]
+    return ""
+
+
 def _get_active_agents_impl(
     projects_dir: Path,
+    teams_dir: Path | None = None,
 ) -> tuple[PixelAgentState, ...]:
     active_files = _find_active_jsonl_files(projects_dir)
     active_files.sort(key=lambda x: x[0].stem)
-    agents: list[PixelAgentState] = []
 
-    for desk_index, (file_path, project_name, mtime) in enumerate(active_files):
+    effective_teams_dir = teams_dir if teams_dir is not None else TEAMS_DIR
+    team_memberships = _get_active_team_memberships(effective_teams_dir)
+
+    # Build agent data with team names
+    raw_agents: list[tuple[Path, str, float, str]] = []
+    for file_path, project_name, mtime in active_files:
+        team_name = _resolve_team_name(file_path, team_memberships)
+        raw_agents.append((file_path, project_name, mtime, team_name))
+
+    # Sort: team members first (grouped by team name), then solo agents
+    raw_agents.sort(key=lambda x: (x[3] == "", x[3], x[0].stem))
+
+    agents: list[PixelAgentState] = []
+    for desk_index, (file_path, project_name, mtime, team_name) in enumerate(
+        raw_agents
+    ):
         state, tool_name, tool_status, model, is_subagent = _detect_state_from_tail(
             file_path
         )
@@ -187,6 +257,7 @@ def _get_active_agents_impl(
                 last_activity_ts=last_activity,
                 session_id=session_id,
                 is_subagent=is_subagent,
+                team_name=team_name,
             )
         )
 

@@ -9,7 +9,7 @@
 /* ── Tile Grid + BFS Pathfinding ──────────────────────────── */
 
 var TileGrid = (function () {
-  var TILE_SIZE = 32;
+  var TILE_SIZE = 40;
   var WALL_HEIGHT = 60;
 
   function _createGrid(canvasW, canvasH) {
@@ -28,8 +28,8 @@ var TileGrid = (function () {
   function _markDeskBlocked(grid, deskX, deskY) {
     var startCol = Math.floor(deskX / TILE_SIZE);
     var startRow = Math.floor(deskY / TILE_SIZE);
-    var endCol = Math.ceil((deskX + 70) / TILE_SIZE);
-    var endRow = Math.ceil((deskY + 32) / TILE_SIZE);
+    var endCol = Math.ceil((deskX + 90) / TILE_SIZE);
+    var endRow = Math.ceil((deskY + 42) / TILE_SIZE);
     for (var r = Math.max(0, startRow - 1); r <= Math.min(grid.rows - 1, endRow); r++) {
       for (var c = Math.max(0, startCol); c <= Math.min(grid.cols - 1, endCol); c++) {
         grid.walkable[r][c] = false;
@@ -148,7 +148,7 @@ var CharacterMovement = (function () {
   var STATE_WANDER = 'wander';
   var STATE_FADEOUT = 'fadeout';
 
-  var WALK_SPEED = 1.5;
+  var WALK_SPEED = 2.0;
   var WANDER_INTERVAL_MIN = 15000;
   var WANDER_INTERVAL_MAX = 30000;
   var IDLE_GRACE_PERIOD = 10000;

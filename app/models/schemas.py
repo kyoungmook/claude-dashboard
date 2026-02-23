@@ -224,3 +224,4 @@ class PixelAgentState:
     last_activity_ts: str = ""
     session_id: str = ""
     is_subagent: bool = False
+    team_name: str = ""
