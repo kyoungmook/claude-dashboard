@@ -225,3 +225,5 @@ class PixelAgentState:
     session_id: str = ""
     is_subagent: bool = False
     team_name: str = ""
+    role: str = ""
+    is_lead: bool = False

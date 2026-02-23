@@ -650,10 +650,36 @@ var OfficeRenderer = (function () {
   }
 
   function drawLabel(ctx, x, y, text, color) {
-    ctx.font = '11px monospace';
+    var cx = x + DESK_WIDTH / 2;
+    var cy = y + DESK_HEIGHT + 74;
+    ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'center';
-    ctx.fillStyle = color || '#9ca3af';
-    ctx.fillText(text, x + DESK_WIDTH / 2, y + DESK_HEIGHT + 66);
+
+    // Measure text for badge background
+    var metrics = ctx.measureText(text);
+    var padX = 7;
+    var padY = 3;
+    var badgeW = metrics.width + padX * 2;
+    var badgeH = 13 + padY * 2;
+    var badgeX = cx - badgeW / 2;
+    var badgeY = cy - 13 + 1 - padY;
+
+    // Rounded rectangle badge background
+    ctx.fillStyle = 'rgba(255,255,255,0.82)';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+    ctx.fill();
+
+    // Subtle border
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+    ctx.stroke();
+
+    // Text
+    ctx.fillStyle = color || '#4b5563';
+    ctx.fillText(text, cx, cy);
   }
 
   function drawBubble(ctx, x, y, text, state, alpha) {
@@ -728,7 +754,7 @@ var OfficeRenderer = (function () {
       idle: '#6b7280',
     };
     var cx = x + DESK_WIDTH / 2;
-    var cy = y + DESK_HEIGHT + 74;
+    var cy = y + DESK_HEIGHT + 84;
     ctx.beginPath();
     ctx.arc(cx, cy, 3, 0, Math.PI * 2);
     ctx.fillStyle = colors[state] || colors.idle;
@@ -959,6 +985,8 @@ PixelOffice.prototype._updateAgents = function (agentDataList) {
         deskIndex: data.desk_index,
         model: data.model || '',
         isSubagent: existingSub,
+        isLead: data.is_lead || false,
+        role: data.role || '',
         lastActivityTs: data.last_activity_ts || '',
         teamName: data.team_name || '',
         movement: mv,
@@ -982,6 +1010,8 @@ PixelOffice.prototype._updateAgents = function (agentDataList) {
         deskIndex: data.desk_index,
         model: data.model || '',
         isSubagent: isSub,
+        isLead: data.is_lead || false,
+        role: data.role || '',
         lastActivityTs: data.last_activity_ts || '',
         teamName: data.team_name || '',
         character: character,
@@ -1258,10 +1288,21 @@ PixelOffice.prototype._render = function (now) {
   this.agents.forEach(function (agent) {
     var pos = OfficeRenderer.getDeskPosition(agent.deskIndex, w);
 
-    // Label: project name (with "(sub)" suffix for subagents)
-    var labelText = agent.isSubagent ? agent.projectName + ' (sub)' : agent.projectName;
-    var labelColor = agent.isSubagent ? '#60a5fa' : '#f97316';
+    // Label: role name for team members, project name for solo agents
+    var labelText = agent.role || agent.projectName;
+    var labelColor = agent.isLead ? '#b45309' : (agent.role ? '#1d4ed8' : '#c2410c');
     OfficeRenderer.drawLabel(ctx, pos.x, pos.y, labelText, labelColor);
+
+    // Lead badge — star placed left of the label badge
+    if (agent.isLead) {
+      ctx.font = 'bold 13px monospace';
+      var labelMetrics = ctx.measureText(labelText);
+      var starX = pos.x + OfficeRenderer.DESK_WIDTH / 2 - labelMetrics.width / 2 - 16;
+      var starY = pos.y + OfficeRenderer.DESK_HEIGHT + 80;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillText('\u2605', starX, starY);
+    }
 
     // Status dot
     OfficeRenderer.drawStatusDot(ctx, pos.x, pos.y, agent.state);

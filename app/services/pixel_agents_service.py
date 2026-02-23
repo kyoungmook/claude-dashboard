@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -50,13 +51,18 @@ def _project_name_from_dir(dir_name: str) -> str:
     return name or dir_name.lstrip("-")
 
 
-def _get_active_team_memberships(
-    teams_dir: Path,
-) -> dict[str, str]:
-    """Return {session_id: team_name} for active team lead sessions."""
-    memberships: dict[str, str] = {}
+@dataclass
+class _TeamInfo:
+    team_name: str
+    lead_session_id: str
+    members: list[dict[str, str]]
+
+
+def _get_active_teams(teams_dir: Path) -> list[_TeamInfo]:
+    """Return list of active team infos from config files."""
+    teams: list[_TeamInfo] = []
     if not teams_dir.is_dir():
-        return memberships
+        return teams
     for team_dir in teams_dir.iterdir():
         if not team_dir.is_dir():
             continue
@@ -67,10 +73,32 @@ def _get_active_team_memberships(
             data = json.loads(config_path.read_text(encoding="utf-8"))
             team_name = data.get("name", team_dir.name)
             lead_session_id = data.get("leadSessionId", "")
+            members = []
+            for m in data.get("members", []):
+                if isinstance(m, dict):
+                    members.append({
+                        "name": m.get("name", ""),
+                        "agent_type": m.get("agentType", ""),
+                        "agent_id": m.get("agentId", ""),
+                    })
             if lead_session_id:
-                memberships[lead_session_id] = team_name
+                teams.append(_TeamInfo(
+                    team_name=team_name,
+                    lead_session_id=lead_session_id,
+                    members=members,
+                ))
         except (json.JSONDecodeError, OSError):
             continue
+    return teams
+
+
+def _get_active_team_memberships(
+    teams_dir: Path,
+) -> dict[str, str]:
+    """Return {session_id: team_name} for active team lead sessions."""
+    memberships: dict[str, str] = {}
+    for team in _get_active_teams(teams_dir):
+        memberships[team.lead_session_id] = team.team_name
     return memberships
 
 
@@ -226,20 +254,91 @@ def _get_active_agents_impl(
 
     effective_teams_dir = teams_dir if teams_dir is not None else TEAMS_DIR
     team_memberships = _get_active_team_memberships(effective_teams_dir)
+    active_teams = _get_active_teams(effective_teams_dir)
 
-    # Build agent data with team names
-    raw_agents: list[tuple[Path, str, float, str]] = []
+    # Track which active sessions are lead sessions
+    active_session_ids = {f.stem for f, _, _ in active_files}
+
+    # Build agent data with team names and roles
+    raw_agents: list[tuple[Path, str, float, str, str, bool]] = []
     for file_path, project_name, mtime in active_files:
         team_name = _resolve_team_name(file_path, team_memberships)
-        raw_agents.append((file_path, project_name, mtime, team_name))
+        is_lead = file_path.stem in team_memberships
+        role = ""
+        if is_lead:
+            role = "team-lead"
+        elif file_path.parent.name == "subagents":
+            role = "teammate"
+        raw_agents.append((file_path, project_name, mtime, team_name, role, is_lead))
+
+    # For active teams, add virtual agents for team members
+    # only if no real subagent JSONL files exist for this team
+    for team in active_teams:
+        if team.lead_session_id not in active_session_ids:
+            continue
+        # Count existing team subagents (real JSONL files)
+        existing_team_subagents = sum(
+            1 for _, _, _, tn, role, _ in raw_agents
+            if tn == team.team_name and role == "teammate"
+        )
+        if existing_team_subagents > 0:
+            continue
+        lead_file = None
+        lead_project = ""
+        for f, p, _ in active_files:
+            if f.stem == team.lead_session_id:
+                lead_file = f
+                lead_project = p
+                break
+        if not lead_file:
+            continue
+        for member in team.members:
+            member_name = member.get("name", "")
+            member_type = member.get("agent_type", "")
+            if member_type == "team-lead" or member_name == "team-lead":
+                continue
+            raw_agents.append((
+                lead_file,
+                lead_project,
+                lead_file.stat().st_mtime,
+                team.team_name,
+                member_name,
+                False,
+            ))
 
     # Sort: team members first (grouped by team name), then solo agents
-    raw_agents.sort(key=lambda x: (x[3] == "", x[3], x[0].stem))
+    raw_agents.sort(key=lambda x: (x[3] == "", x[3], x[4] != "team-lead", x[4]))
 
     agents: list[PixelAgentState] = []
-    for desk_index, (file_path, project_name, mtime, team_name) in enumerate(
+    seen_virtual: set[str] = set()
+    for desk_index, (file_path, project_name, mtime, team_name, role, is_lead) in enumerate(
         raw_agents
     ):
+        if role not in ("", "team-lead", "teammate"):
+            virtual_id = f"team-{team_name}-{role}"
+            if virtual_id in seen_virtual:
+                continue
+            seen_virtual.add(virtual_id)
+            last_activity = utc_to_kst(
+                time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(mtime))
+            )
+            agents.append(
+                PixelAgentState(
+                    agent_id=virtual_id,
+                    project_name=project_name,
+                    state="typing",
+                    tool_status="대기 중...",
+                    desk_index=desk_index,
+                    last_activity_ts=last_activity,
+                    session_id=file_path.stem,
+                    is_subagent=True,
+                    team_name=team_name,
+                    role=role,
+                    is_lead=False,
+                )
+            )
+            continue
+
         state, tool_name, tool_status, model, is_subagent = _detect_state_from_tail(
             file_path
         )
@@ -261,6 +360,8 @@ def _get_active_agents_impl(
                 session_id=session_id,
                 is_subagent=is_subagent,
                 team_name=team_name,
+                role=role if role else "",
+                is_lead=is_lead,
             )
         )
 
