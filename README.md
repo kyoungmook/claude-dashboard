@@ -36,6 +36,8 @@ http://localhost:8000 에서 확인.
 
 `/pixel-office` — 현재 활성 Claude Code 에이전트를 픽셀 아트 캐릭터로 가상 오피스에 시각화합니다. [pixel-agents](https://github.com/pablodelucca/pixel-agents) 프로젝트에서 영감을 받았습니다.
 
+![Pixel Office Screenshot](docs/pixel-office-screenshot.png)
+
 ### 주요 기능
 
 - **실시간 상태 감지**: JSONL tail-read + SSE(3초 간격)로 에이전트 상태를 실시간 반영
