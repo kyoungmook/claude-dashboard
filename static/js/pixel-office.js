@@ -367,7 +367,7 @@ var OfficeRenderer = (function () {
   var DESK_WIDTH = 90;
   var DESK_HEIGHT = 42;
   var DESK_SPACING_X = 175;
-  var DESK_SPACING_Y = 155;
+  var DESK_SPACING_Y = 200;
   var DESK_START_X = 90;
   var DESK_START_Y = 100;
   var MONITOR_W = 28;
@@ -652,17 +652,27 @@ var OfficeRenderer = (function () {
   function drawLabel(ctx, x, y, text, color) {
     var cx = x + DESK_WIDTH / 2;
     var cy = y + DESK_HEIGHT + 74;
-    ctx.font = 'bold 13px monospace';
+    ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'center';
 
-    // Measure text for badge background
-    var metrics = ctx.measureText(text);
-    var padX = 7;
+    // Truncate long text to fit within desk spacing
+    var maxWidth = DESK_SPACING_X - 20;
+    var displayText = text;
+    var metrics = ctx.measureText(displayText);
+    if (metrics.width > maxWidth) {
+      while (ctx.measureText(displayText + '..').width > maxWidth && displayText.length > 3) {
+        displayText = displayText.slice(0, -1);
+      }
+      displayText += '..';
+      metrics = ctx.measureText(displayText);
+    }
+
+    var padX = 6;
     var padY = 3;
     var badgeW = metrics.width + padX * 2;
-    var badgeH = 13 + padY * 2;
+    var badgeH = 12 + padY * 2;
     var badgeX = cx - badgeW / 2;
-    var badgeY = cy - 13 + 1 - padY;
+    var badgeY = cy - 12 + 1 - padY;
 
     // Rounded rectangle badge background
     ctx.fillStyle = 'rgba(255,255,255,0.82)';
@@ -679,7 +689,7 @@ var OfficeRenderer = (function () {
 
     // Text
     ctx.fillStyle = color || '#4b5563';
-    ctx.fillText(text, cx, cy);
+    ctx.fillText(displayText, cx, cy);
   }
 
   function drawBubble(ctx, x, y, text, state, alpha) {
@@ -754,7 +764,7 @@ var OfficeRenderer = (function () {
       idle: '#6b7280',
     };
     var cx = x + DESK_WIDTH / 2;
-    var cy = y + DESK_HEIGHT + 84;
+    var cy = y + DESK_HEIGHT + 68;
     ctx.beginPath();
     ctx.arc(cx, cy, 3, 0, Math.PI * 2);
     ctx.fillStyle = colors[state] || colors.idle;
@@ -1298,7 +1308,7 @@ PixelOffice.prototype._render = function (now) {
       ctx.font = 'bold 13px monospace';
       var labelMetrics = ctx.measureText(labelText);
       var starX = pos.x + OfficeRenderer.DESK_WIDTH / 2 - labelMetrics.width / 2 - 16;
-      var starY = pos.y + OfficeRenderer.DESK_HEIGHT + 80;
+      var starY = pos.y + OfficeRenderer.DESK_HEIGHT + 74;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#f59e0b';
       ctx.fillText('\u2605', starX, starY);
