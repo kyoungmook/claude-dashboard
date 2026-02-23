@@ -149,8 +149,9 @@ var CharacterMovement = (function () {
   var STATE_FADEOUT = 'fadeout';
 
   var WALK_SPEED = 1.5;
-  var WANDER_INTERVAL_MIN = 3000;
-  var WANDER_INTERVAL_MAX = 8000;
+  var WANDER_INTERVAL_MIN = 15000;
+  var WANDER_INTERVAL_MAX = 30000;
+  var IDLE_GRACE_PERIOD = 10000;
   var FADEOUT_DURATION = 800;
   var SPAWN_Y_OFFSET = 40;
 
@@ -167,7 +168,8 @@ var CharacterMovement = (function () {
       targetY: pixelY,
       path: [],
       pathIndex: 0,
-      wanderTimer: Date.now() + _randomWanderDelay(),
+      wanderTimer: 0,
+      idleSince: 0,
       fadeAlpha: 1.0,
       fadeStart: 0,
       seatX: pixelX,
@@ -213,7 +215,8 @@ var CharacterMovement = (function () {
         x: mv.seatX,
         y: mv.seatY,
         path: [],
-        wanderTimer: Date.now() + _randomWanderDelay(),
+        wanderTimer: 0,
+        idleSince: 0,
       });
     }
 
@@ -232,30 +235,64 @@ var CharacterMovement = (function () {
   }
 
   function _updateSeated(mv, grid, agentState, now, canvasW, canvasH) {
-    if (agentState === 'idle' && now > mv.wanderTimer) {
-      var startTile = TileGrid.pixelToTile(mv.seatX, mv.seatY);
-      var src = TileGrid.findNearestWalkable(grid, startTile.col, startTile.row + 1);
-      var destCol = Math.floor(Math.random() * grid.cols * 0.6) + Math.floor(grid.cols * 0.2);
-      var destRow = Math.floor(Math.random() * (grid.rows - 3)) + 3;
-      var dest = TileGrid.findNearestWalkable(grid, destCol, destRow);
-      var path = TileGrid.findPath(grid, src.col, src.row, dest.col, dest.row);
-
-      if (path && path.length > 0) {
-        return Object.assign({}, mv, {
-          phase: STATE_WANDER,
-          x: mv.seatX,
-          y: mv.seatY,
-          path: path,
-          pathIndex: 0,
-        });
-      }
-
+    // Track continuous idle time — reset when agent becomes active
+    if (agentState !== 'idle') {
       return Object.assign({}, mv, {
-        wanderTimer: now + _randomWanderDelay(),
+        x: mv.seatX,
+        y: mv.seatY,
+        idleSince: 0,
+        wanderTimer: 0,
       });
     }
 
-    return Object.assign({}, mv, { x: mv.seatX, y: mv.seatY });
+    // Agent is idle — start tracking idle time
+    var idleSince = mv.idleSince || now;
+    var idleDuration = now - idleSince;
+
+    // Require sustained idle for IDLE_GRACE_PERIOD before considering wander
+    if (idleDuration < IDLE_GRACE_PERIOD) {
+      return Object.assign({}, mv, {
+        x: mv.seatX,
+        y: mv.seatY,
+        idleSince: idleSince,
+      });
+    }
+
+    // Set wander timer on first eligible check
+    var wanderTimer = mv.wanderTimer || (now + _randomWanderDelay());
+    if (now < wanderTimer) {
+      return Object.assign({}, mv, {
+        x: mv.seatX,
+        y: mv.seatY,
+        idleSince: idleSince,
+        wanderTimer: wanderTimer,
+      });
+    }
+
+    // Time to wander
+    var startTile = TileGrid.pixelToTile(mv.seatX, mv.seatY);
+    var src = TileGrid.findNearestWalkable(grid, startTile.col, startTile.row + 1);
+    var destCol = Math.floor(Math.random() * grid.cols * 0.6) + Math.floor(grid.cols * 0.2);
+    var destRow = Math.floor(Math.random() * (grid.rows - 3)) + 3;
+    var dest = TileGrid.findNearestWalkable(grid, destCol, destRow);
+    var path = TileGrid.findPath(grid, src.col, src.row, dest.col, dest.row);
+
+    if (path && path.length > 0) {
+      return Object.assign({}, mv, {
+        phase: STATE_WANDER,
+        x: mv.seatX,
+        y: mv.seatY,
+        path: path,
+        pathIndex: 0,
+        idleSince: idleSince,
+        wanderTimer: 0,
+      });
+    }
+
+    return Object.assign({}, mv, {
+      wanderTimer: now + _randomWanderDelay(),
+      idleSince: idleSince,
+    });
   }
 
   function _updateWander(mv, grid, agentState, now) {
@@ -279,7 +316,8 @@ var CharacterMovement = (function () {
         x: mv.seatX,
         y: mv.seatY,
         path: [],
-        wanderTimer: now + _randomWanderDelay(),
+        wanderTimer: 0,
+        idleSince: now,
       });
     }
 
