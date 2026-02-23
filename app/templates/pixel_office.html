@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-white">픽셀 오피스</h1>
+    <div class="flex items-center gap-3">
+      <button id="toggleBtn" onclick="pixelOffice.toggle()"
+              class="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-sm text-white font-medium transition-colors">
+        <span id="toggleIcon" class="inline-block w-2 h-2 rounded-full bg-green-300 mr-1.5 animate-pulse"></span>
+        실시간
+      </button>
+      <span id="agentCount" class="text-xs text-gray-400">
+        {{ agents|length }}명 활동 중
+      </span>
+      <span class="text-xs text-gray-500">{{ updated_at }}</span>
+    </div>
+  </div>
+
+  <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden relative"
+       style="height: calc(100vh - 220px); min-height: 400px;">
+    <canvas id="officeCanvas"></canvas>
+    <div id="emptyState" class="absolute inset-0 flex items-center justify-center {% if agents %}hidden{% endif %}">
+      <div class="text-center">
+        <div class="text-4xl mb-3">🏢</div>
+        <p class="text-gray-400 text-sm">활성 에이전트가 없습니다</p>
+        <p class="text-gray-500 text-xs mt-1">Claude Code 세션을 시작하면 여기에 표시됩니다</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="agentPanel" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+    {% for agent in agents %}
+    <div class="bg-gray-800 rounded border border-gray-700 p-3 flex items-center gap-3">
+      <div class="w-2 h-2 rounded-full {% if agent.state == 'typing' %}bg-green-400{% elif agent.state == 'reading' %}bg-blue-400{% elif agent.state == 'waiting' %}bg-yellow-400{% else %}bg-gray-500{% endif %}"></div>
+      <div class="min-w-0">
+        <div class="text-sm text-white truncate">{{ agent.project_name }}</div>
+        <div class="text-xs text-gray-400 truncate">{{ agent.tool_status or '대기 중' }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/pixel-office.js"></script>
+<script>
+(function() {
+  var initialAgents = {{ agents | tojson }};
+  window.pixelOffice = new PixelOffice('officeCanvas', initialAgents);
+  window.pixelOffice.start();
+})();
+</script>
+{% endblock %}
