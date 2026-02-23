@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from typing import Any
 
 from app.config import STATS_CACHE_PATH, get_model_display_name, get_model_pricing
@@ -14,6 +15,44 @@ def _load_stats_cache() -> dict[str, Any]:
             return json.load(f)
     except (OSError, json.JSONDecodeError):
         return {}
+
+
+def _supplement_daily_from_sessions(
+    cache_daily: tuple[DailyActivity, ...],
+) -> tuple[DailyActivity, ...]:
+    """Add daily activity for dates not covered by stats-cache.json."""
+    from app.services.session_service import get_all_sessions
+
+    cache_dates = {d.date for d in cache_daily}
+    last_cache_date = max(cache_dates) if cache_dates else ""
+
+    sessions = get_all_sessions()
+    daily_msgs: Counter[str] = Counter()
+    daily_sessions: Counter[str] = Counter()
+    daily_tools: Counter[str] = Counter()
+
+    for s in sessions:
+        date = s.first_timestamp[:10] if s.first_timestamp else ""
+        if not date or date <= last_cache_date:
+            continue
+        daily_msgs[date] += s.message_count
+        daily_sessions[date] += 1
+        daily_tools[date] += s.tool_calls_count
+
+    if not daily_msgs:
+        return cache_daily
+
+    extra = tuple(
+        DailyActivity(
+            date=date,
+            message_count=daily_msgs[date],
+            session_count=daily_sessions[date],
+            tool_call_count=daily_tools[date],
+        )
+        for date in sorted(daily_msgs)
+    )
+
+    return cache_daily + extra
 
 
 def _calc_model_cost(model_id: str, stats: dict[str, Any]) -> float:
@@ -33,7 +72,7 @@ def get_overview_stats() -> OverviewStats:
     if not data:
         return OverviewStats()
 
-    daily_activity = tuple(
+    cache_daily = tuple(
         DailyActivity(
             date=d["date"],
             message_count=d.get("messageCount", 0),
@@ -42,6 +81,7 @@ def get_overview_stats() -> OverviewStats:
         )
         for d in data.get("dailyActivity", [])
     )
+    daily_activity = _supplement_daily_from_sessions(cache_daily)
 
     model_usage_list = []
     total_cost = 0.0
@@ -61,8 +101,14 @@ def get_overview_stats() -> OverviewStats:
         )
 
     total_tool_calls = sum(d.tool_call_count for d in daily_activity)
-    total_sessions = data.get("totalSessions", 0)
-    total_messages = data.get("totalMessages", 0)
+    total_sessions = max(
+        data.get("totalSessions", 0),
+        sum(d.session_count for d in daily_activity),
+    )
+    total_messages = max(
+        data.get("totalMessages", 0),
+        sum(d.message_count for d in daily_activity),
+    )
 
     longest_raw = data.get("longestSession", {})
     longest = LongestSession(

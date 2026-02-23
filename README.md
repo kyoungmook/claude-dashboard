@@ -30,6 +30,37 @@ http://localhost:8000 에서 확인.
 | `/agents` | 에이전트 정의/호출 통계/도구 사용 분석, 최근 활동 |
 | `/teams` | 팀 세션 목록, 에이전트 구성 |
 | `/teams/replay/{id}` | 멀티 에이전트 세션 타임라인 리플레이 |
+| `/pixel-office` | **픽셀 오피스** — 활성 에이전트를 픽셀 아트 캐릭터로 실시간 시각화 |
+
+## Pixel Office
+
+`/pixel-office` — 현재 활성 Claude Code 에이전트를 픽셀 아트 캐릭터로 가상 오피스에 시각화합니다. [pixel-agents](https://github.com/pablodelucca/pixel-agents) 프로젝트에서 영감을 받았습니다.
+
+![Pixel Office Screenshot](docs/pixel-office-screenshot.png)
+
+### 주요 기능
+
+- **실시간 상태 감지**: JSONL tail-read + SSE(3초 간격)로 에이전트 상태를 실시간 반영
+  - typing (코드 수정, 명령 실행), reading (파일/코드 검색), waiting (사용자 입력 대기), idle (유휴)
+- **절차적 픽셀 아트 캐릭터**: 6가지 색상 팔레트, 16x16 스프라이트를 Canvas 2D로 렌더링 (외부 에셋 불필요)
+- **걷기 애니메이션**: BFS pathfinding 기반 타일 이동, 5-phase 상태 머신 (SPAWN → WALK_TO_DESK → SEATED → WANDER → FADEOUT)
+- **팀 파티션**: `~/.claude/teams/` 감지 시 팀원들을 파티션으로 그룹핑, 리드 에이전트 ★ 표시
+- **서브에이전트 역할 표시**: 부모 JSONL에서 `subagent_type`/`name`을 추출하여 code-reviewer, Explore 등 역할명 표시
+- **클릭 인터랙션**: 캐릭터 클릭 → 해당 세션 상세 페이지 이동, 호버 시 하이라이트
+- **오피스 장식**: 밝은 마룻바닥, 크림색 벽, 창문(하늘/구름/커튼), 화분, 시계, 화이트보드, 카펫 등
+- **상태별 말풍선**: 도구 상태 텍스트 + 페이드 애니메이션, waiting 시 "?" 표시
+
+### 구성 파일
+
+```
+static/js/
+├── pixel-office.js            # 메인 게임 엔진 (캐릭터, 렌더러, SSE 컨트롤러)
+├── pixel-office-movement.js   # BFS pathfinding + 캐릭터 상태 머신
+└── pixel-office-decorations.js # 오피스 장식 (화분, 시계, 카펫 등)
+
+app/services/
+└── pixel_agents_service.py    # JSONL 상태 감지, 팀 멤버 매칭, 서브에이전트 역할 추출
+```
 
 ## Tech Stack
 
@@ -60,7 +91,8 @@ claude-dashboard/
 │   │   ├── tool_service.py          # 도구 사용 분석
 │   │   ├── project_service.py       # 프로젝트별 분석
 │   │   ├── agent_service.py         # 에이전트 정의 파싱, 서브에이전트 활동, 팀 세션, 리플레이
-│   │   └── task_service.py          # 태스크 리스트/팀 상태 파싱
+│   │   ├── task_service.py          # 태스크 리스트/팀 상태 파싱
+│   │   └── pixel_agents_service.py  # 픽셀 오피스: 에이전트 상태 감지, 팀/서브에이전트 역할
 │   ├── routers/
 │   │   ├── overview.py              # GET /
 │   │   ├── sessions.py              # GET /sessions, /sessions/{id}, /sessions/{id}/stream (SSE)
@@ -70,7 +102,8 @@ claude-dashboard/
 │   │   ├── projects.py              # GET /projects
 │   │   ├── tasks.py                 # GET /tasks
 │   │   ├── agents.py                # GET /agents
-│   │   └── teams.py                 # GET /teams, /teams/replay/{id}
+│   │   ├── teams.py                 # GET /teams, /teams/replay/{id}
+│   │   └── pixel_office.py          # GET /pixel-office, /pixel-office/stream (SSE)
 │   └── templates/
 │       ├── base.html                # 공통 레이아웃 (nav, CDN 링크, HTMX beforeSwap)
 │       ├── overview.html
@@ -84,12 +117,17 @@ claude-dashboard/
 │       ├── agents.html
 │       ├── teams.html
 │       ├── replay.html              # 멀티 에이전트 타임라인 리플레이
+│       ├── pixel_office.html        # 픽셀 오피스 (Canvas 2D)
 │       ├── partials/                # HTMX 폴링용 부분 템플릿
 │       └── components/
 │           ├── nav.html
 │           └── stats_card.html
 ├── static/
-│   └── js/charts.js                 # Chart.js 헬퍼 (line, bar, doughnut, horizontal bar)
+│   └── js/
+│       ├── charts.js                # Chart.js 헬퍼 (line, bar, doughnut, horizontal bar)
+│       ├── pixel-office.js          # 픽셀 오피스 메인 엔진 (캐릭터, 렌더러, SSE)
+│       ├── pixel-office-movement.js # BFS pathfinding + 상태 머신
+│       └── pixel-office-decorations.js # 오피스 장식 렌더링
 └── tests/
     ├── test_log_parser.py
     ├── test_config.py
@@ -97,7 +135,9 @@ claude-dashboard/
     ├── test_session_stream.py
     ├── test_file_watcher.py
     ├── test_agent_service.py
-    └── test_task_service.py
+    ├── test_task_service.py
+    ├── test_pixel_agents_service.py  # 픽셀 오피스 서비스 테스트
+    └── test_pixel_office_router.py   # 픽셀 오피스 라우터 테스트
 ```
 
 ## Data Sources
@@ -121,9 +161,10 @@ claude-dashboard/
 ## Real-time Update
 
 - **HTMX 폴링**: 모든 페이지에서 `hx-trigger="every 30s"`로 부분 템플릿 자동 갱신
-- **SSE 스트리밍**: `/live/stream`과 `/sessions/{id}/stream`에서 EventSource로 실시간 이벤트 수신
+- **SSE 스트리밍**: `/live/stream`, `/sessions/{id}/stream`, `/pixel-office/stream`에서 EventSource로 실시간 이벤트 수신
   - `FileWatcher`: 전체 프로젝트 디렉토리 감시 (라이브 페이지)
   - `SingleFileWatcher`: 단일 세션 파일 감시, `init_at_end()`로 SSR 이후 새 메시지만 감지
+  - `pixel_agents_service`: JSONL tail-read로 에이전트 상태 감지 (픽셀 오피스, 5초 TTL)
 
 ## Cost Calculation
 

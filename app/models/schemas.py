@@ -210,3 +210,20 @@ class LiveEvent:
     output_tokens: int = 0
     duration_ms: int = 0
     model: str = ""
+
+
+@dataclass(frozen=True)
+class PixelAgentState:
+    agent_id: str
+    project_name: str
+    state: str
+    tool_name: str = ""
+    tool_status: str = ""
+    model: str = ""
+    desk_index: int = 0
+    last_activity_ts: str = ""
+    session_id: str = ""
+    is_subagent: bool = False
+    team_name: str = ""
+    role: str = ""
+    is_lead: bool = False
