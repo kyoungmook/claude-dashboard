@@ -13,197 +13,253 @@
 /* ── Character Factory ─────────────────────────────────────── */
 
 var CharacterFactory = (function () {
-  // 6 diverse palettes: skin, hair, shirt, pants
+  // 6 diverse palettes — vibrant, lively colors
   var PALETTES = [
-    { skin: '#ffd5b4', hair: '#4a3728', shirt: '#3b82f6', pants: '#1e3a5f' },
-    { skin: '#e8b88a', hair: '#1a1a1a', shirt: '#ef4444', pants: '#374151' },
-    { skin: '#fce4c4', hair: '#c68642', shirt: '#10b981', pants: '#1f2937' },
-    { skin: '#d4a574', hair: '#2d1810', shirt: '#a855f7', pants: '#312e81' },
-    { skin: '#ffe0bd', hair: '#8b6914', shirt: '#f97316', pants: '#44403c' },
-    { skin: '#c68642', hair: '#0a0a0a', shirt: '#06b6d4', pants: '#134e4a' },
+    { skin: '#ffe0c2', hair: '#5a3a28', shirt: '#4a9ff5', pants: '#2a4a7a' },
+    { skin: '#f0c8a0', hair: '#1a1a1a', shirt: '#f06060', pants: '#404858' },
+    { skin: '#fff0d8', hair: '#d4944a', shirt: '#30c090', pants: '#2a3848' },
+    { skin: '#deb888', hair: '#3a2218', shirt: '#b870f0', pants: '#3a3878' },
+    { skin: '#ffe8c8', hair: '#a07820', shirt: '#f89030', pants: '#504840' },
+    { skin: '#d4944a', hair: '#0a0a0a', shirt: '#20c8e0', pants: '#1a5850' },
   ];
 
-  // Each frame is a 12x16 grid. null = transparent.
-  // Legend: S=skin, H=hair, C=shirt, P=pants, E=eye, K=shoe
+  // Color helper: lighten a hex color by fraction (0..1)
+  function _lighten(hex, frac) {
+    var num = parseInt(hex.replace('#', ''), 16);
+    var r = (num >> 16) & 255;
+    var g = (num >> 8) & 255;
+    var b = num & 255;
+    r = Math.min(255, Math.round(r + (255 - r) * frac));
+    g = Math.min(255, Math.round(g + (255 - g) * frac));
+    b = Math.min(255, Math.round(b + (255 - b) * frac));
+    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  }
+
+  // Color helper: darken a hex color by fraction (0..1)
+  function _darken(hex, frac) {
+    var num = parseInt(hex.replace('#', ''), 16);
+    var r = (num >> 16) & 255;
+    var g = (num >> 8) & 255;
+    var b = num & 255;
+    r = Math.round(r * (1 - frac));
+    g = Math.round(g * (1 - frac));
+    b = Math.round(b * (1 - frac));
+    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  }
+
+  // 12x16 grid per frame.  null = transparent.
+  // Legend:
+  //   S=skin  H=hair  h=hair highlight  E=eye(pupil)
+  //   W=white(eye sclera/highlight)  B=blush  M=mouth
+  //   C=shirt  c=collar(light shirt)  D=dark shirt shadow
+  //   P=pants  K=shoe
   function _buildFrame(grid, palette) {
     var map = {
       S: palette.skin,
       H: palette.hair,
-      C: palette.shirt,
-      P: palette.pants,
+      h: _lighten(palette.hair, 0.35),
       E: '#1a1a1a',
-      K: '#2a2a2a',
       W: '#ffffff',
+      B: '#ffb0b0',
+      M: '#d09080',
+      C: palette.shirt,
+      c: _lighten(palette.shirt, 0.3),
+      D: _darken(palette.shirt, 0.2),
+      P: palette.pants,
+      K: '#2a2a2a',
     };
     return grid.map(function (row) {
-      return row.split('').map(function (c) {
-        return map[c] || null;
+      return row.split('').map(function (ch) {
+        return map[ch] || null;
       });
     });
   }
 
-  // Idle frame — standing front view
+  // ── Idle — cute SD standing pose ──────────────────────────
+  // Big head (rows 0-7), small body (rows 8-15)
+  // 2.5-head proportion: 8 rows head, 8 rows body
+  // Eyes: 2-wide WE pairs with blush cheeks
   var IDLE_GRID = [
-    '....HHHH....',
-    '...HHHHHH...',
-    '...HSSEHS...',
-    '...SSSSSS...',
-    '....SSSS....',
-    '....CCCC....',
-    '...CCCCCC...',
-    '...CCCCCC...',
-    '...SCCCCS...',
-    '....CCCC....',
-    '....PPPP....',
-    '....PPPP....',
-    '....P..P....',
-    '....P..P....',
-    '....KK.KK...',
-    '....KK.KK...',
+    '...HhHHhH...',  // row 0:  hair crown with highlights
+    '..HHhHHHhH..',  // row 1:  hair wide
+    '..HHHHHHHH..',  // row 2:  hair forehead
+    '..HSSSSSSH..',  // row 3:  skin under bangs
+    '..SWESSWES..',  // row 4:  eyes (W=sclera, E=pupil)
+    '..BSSSSSSB..',  // row 5:  blush cheeks
+    '...SS..SS...',  // row 6:  nose gap + mouth area
+    '....SMMS....',  // row 7:  small mouth, chin
+    '....cccC....',  // row 8:  collar
+    '...DCCCCD...',  // row 9:  shirt body with shadow
+    '..SDCCCDS...',  // row 10: arms (skin) + shirt
+    '..S.CCCC.S..',  // row 11: hands at sides
+    '....PPPP....',  // row 12: pants
+    '....P..P....',  // row 13: legs
+    '...KK..KK...',  // row 14: shoes
+    '............',  // row 15: (empty)
   ];
 
-  // Type frame 1 — arms forward (typing)
+  // ── Typing frame 1 — arms forward on keyboard ────────────
   var TYPE1_GRID = [
-    '....HHHH....',
-    '...HHHHHH...',
-    '...HSSEHS...',
-    '...SSSSSS...',
-    '....SSSS....',
-    '....CCCC....',
-    '..SCCCCCS...',
-    '..SCCCCCS...',
-    '...SCCCCS...',
-    '....CCCC....',
-    '....PPPP....',
-    '....PPPP....',
+    '...HhHHhH...',
+    '..HHhHHHhH..',
+    '..HHHHHHHH..',
+    '..HSSSSSSH..',
+    '..SWESSWES..',
+    '..BSSSSSSB..',
+    '...SS..SS...',
+    '....SMMS....',
+    '....cccC....',
+    '...DCCCCD...',
+    '..SDCCCDS...',
+    '...SCCCS....',
+    '..S.PPPP.S..',  // hands reaching forward
     '....P..P....',
-    '....P..P....',
-    '....KK.KK...',
-    '....KK.KK...',
+    '...KK..KK...',
+    '............',
   ];
 
-  // Type frame 2 — arms slightly shifted
+  // ── Typing frame 2 — hands shifted (finger wiggle) ───────
   var TYPE2_GRID = [
-    '....HHHH....',
-    '...HHHHHH...',
-    '...HSSEHS...',
-    '...SSSSSS...',
-    '....SSSS....',
-    '....CCCC....',
-    '.SSCCCCCS...',
-    '..SCCCCSS...',
-    '...SCCCCS...',
-    '....CCCC....',
-    '....PPPP....',
-    '....PPPP....',
+    '...HhHHhH...',
+    '..HHhHHHhH..',
+    '..HHHHHHHH..',
+    '..HSSSSSSH..',
+    '..SWESSWES..',
+    '..BSSSSSSB..',
+    '...SS..SS...',
+    '....SMMS....',
+    '....cccC....',
+    '...DCCCCD...',
+    '..SDCCCDS...',
+    '...SCCCS....',
+    '.S..PPPP..S.',  // hands wider apart
     '....P..P....',
-    '....P..P....',
-    '....KK.KK...',
-    '....KK.KK...',
+    '...KK..KK...',
+    '............',
   ];
 
-  // Read frame 1 — head tilted with W (paper/screen glow)
+  // ── Reading frame 1 — eyes looking left ───────────────────
   var READ1_GRID = [
-    '....HHHH....',
-    '...HHHHHH...',
-    '...HWWEHS...',
-    '...SSSSSS...',
-    '....SSSS....',
-    '....CCCC....',
-    '...CCCCCC...',
-    '...CCCCCC...',
-    '...SCCCCS...',
-    '....CCCC....',
-    '....PPPP....',
+    '...HhHHhH...',
+    '..HHhHHHhH..',
+    '..HHHHHHHH..',
+    '..HSSSSSSH..',
+    '..EWSSEEWS..',  // pupils shifted left
+    '..BSSSSSSB..',
+    '...SS..SS...',
+    '....SMMS....',
+    '....cccC....',
+    '...DCCCCD...',
+    '..SDCCCDS...',
+    '..S.CCCC.S..',
     '....PPPP....',
     '....P..P....',
-    '....P..P....',
-    '....KK.KK...',
-    '....KK.KK...',
+    '...KK..KK...',
+    '............',
   ];
 
-  // Read frame 2 — eyes shift
+  // ── Reading frame 2 — eyes looking right ──────────────────
   var READ2_GRID = [
-    '....HHHH....',
-    '...HHHHHH...',
-    '...HEWWHS...',
-    '...SSSSSS...',
-    '....SSSS....',
-    '....CCCC....',
-    '...CCCCCC...',
-    '...CCCCCC...',
-    '...SCCCCS...',
-    '....CCCC....',
-    '....PPPP....',
+    '...HhHHhH...',
+    '..HHhHHHhH..',
+    '..HHHHHHHH..',
+    '..HSSSSSSH..',
+    '..SWEBSWEW..',  // pupils shifted right + highlight dot
+    '..BSSSSSSB..',
+    '...SS..SS...',
+    '....SMMS....',
+    '....cccC....',
+    '...DCCCCD...',
+    '..SDCCCDS...',
+    '..S.CCCC.S..',
     '....PPPP....',
     '....P..P....',
-    '....P..P....',
-    '....KK.KK...',
-    '....KK.KK...',
+    '...KK..KK...',
+    '............',
   ];
 
-  // Walk frame 1 — left foot forward
+  // ── Walk frame 1 — left foot forward, right arm forward ──
   var WALK1_GRID = [
-    '....HHHH....',
-    '...HHHHHH...',
-    '...HSSEHS...',
-    '...SSSSSS...',
-    '....SSSS....',
-    '....CCCC....',
-    '...CCCCCC...',
-    '...CCCCCC...',
-    '...SCCCCS...',
-    '....CCCC....',
-    '....PPPP....',
+    '...HhHHhH...',
+    '..HHhHHHhH..',
+    '..HHHHHHHH..',
+    '..HSSSSSSH..',
+    '..SWESSWES..',
+    '..BSSSSSSB..',
+    '...SS..SS...',
+    '....SMMS....',
+    '....cccC....',
+    '...DCCCCD...',
+    '.S.DCCCDS...',  // right arm forward
+    '...SCCCC.S..',
     '....PPPP....',
     '...PP..P....',
-    '....P..PP...',
-    '...KK...KK..',
-    '...KK...KK..',
+    '..KK...KK...',
+    '............',
   ];
 
-  // Walk frame 2 — legs together (passing)
+  // ── Walk frame 2 — legs together (passing) ────────────────
   var WALK2_GRID = [
-    '....HHHH....',
-    '...HHHHHH...',
-    '...HSSEHS...',
-    '...SSSSSS...',
-    '....SSSS....',
-    '....CCCC....',
-    '...CCCCCC...',
-    '...CCCCCC...',
-    '...SCCCCS...',
-    '....CCCC....',
+    '...HhHHhH...',
+    '..HHhHHHhH..',
+    '..HHHHHHHH..',
+    '..HSSSSSSH..',
+    '..SWESSWES..',
+    '..BSSSSSSB..',
+    '...SS..SS...',
+    '....SMMS....',
+    '....cccC....',
+    '...DCCCCD...',
+    '..SDCCCDS...',
+    '..S.CCCC.S..',
     '....PPPP....',
     '....PPPP....',
-    '....PPPP....',
-    '....P..P....',
-    '....KK.KK...',
-    '....KK.KK...',
+    '...KK..KK...',
+    '............',
   ];
 
-  // Walk frame 3 — right foot forward
+  // ── Walk frame 3 — right foot forward, left arm forward ──
   var WALK3_GRID = [
-    '....HHHH....',
-    '...HHHHHH...',
-    '...HSSEHS...',
-    '...SSSSSS...',
-    '....SSSS....',
-    '....CCCC....',
-    '...CCCCCC...',
-    '...CCCCCC...',
-    '...SCCCCS...',
-    '....CCCC....',
-    '....PPPP....',
+    '...HhHHhH...',
+    '..HHhHHHhH..',
+    '..HHHHHHHH..',
+    '..HSSSSSSH..',
+    '..SWESSWES..',
+    '..BSSSSSSB..',
+    '...SS..SS...',
+    '....SMMS....',
+    '....cccC....',
+    '...DCCCCD...',
+    '..SDCCCD.S..',  // left arm forward
+    '..S.CCCCS...',
     '....PPPP....',
     '....P..PP...',
-    '...PP..P....',
     '..KK...KK...',
-    '..KK...KK...',
+    '............',
   ];
 
   // Walk frame 4 — legs together (passing back)
   var WALK4_GRID = WALK2_GRID;
+
+  // ── Waiting — sleepy face (half-closed eyes) ──────────────
+  var WAIT_GRID = [
+    '...HhHHhH...',
+    '..HHhHHHhH..',
+    '..HHHHHHHH..',
+    '..HSSSSSSH..',
+    '..SEESSEES..',  // squinting eyes — no white sclera
+    '..BSSSSSSB..',
+    '...SS..SS...',
+    '....SMMS....',
+    '....cccC....',
+    '...DCCCCD...',
+    '..SDCCCDS...',
+    '..S.CCCC.S..',
+    '....PPPP....',
+    '....P..P....',
+    '...KK..KK...',
+    '............',
+  ];
 
   function _lightenColor(hex, amount) {
     var num = parseInt(hex.replace('#', ''), 16);
@@ -218,7 +274,7 @@ var CharacterFactory = (function () {
       idle: [_buildFrame(IDLE_GRID, pal)],
       typing: [_buildFrame(TYPE1_GRID, pal), _buildFrame(TYPE2_GRID, pal)],
       reading: [_buildFrame(READ1_GRID, pal), _buildFrame(READ2_GRID, pal)],
-      waiting: [_buildFrame(IDLE_GRID, pal)],
+      waiting: [_buildFrame(WAIT_GRID, pal)],
       walking: [
         _buildFrame(WALK1_GRID, pal),
         _buildFrame(WALK2_GRID, pal),
@@ -336,90 +392,223 @@ var OfficeRenderer = (function () {
   }
 
   function drawBackground(ctx, w, h) {
-    // Floor
-    ctx.fillStyle = '#0f0f1a';
+    // Warm wooden floor base
+    ctx.fillStyle = '#d4b896';
     ctx.fillRect(0, 0, w, h);
 
-    // Subtle grid
-    ctx.strokeStyle = '#1a1a2e';
+    // Wooden plank pattern — alternating tones
+    var plankH = 16;
+    var plankColors = ['#d4b896', '#c9ad88', '#d0b48f', '#c4a882'];
+    for (var py = 60; py < h; py += plankH) {
+      var ci = Math.floor(py / plankH) % plankColors.length;
+      ctx.fillStyle = plankColors[ci];
+      ctx.fillRect(0, py, w, plankH);
+    }
+
+    // Plank separation lines (subtle horizontal)
+    ctx.strokeStyle = '#b89b76';
     ctx.lineWidth = 1;
-    for (var x = 0; x < w; x += 32) {
+    for (var gy = 60 + plankH; gy < h; gy += plankH) {
       ctx.beginPath();
-      ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, h);
-      ctx.stroke();
-    }
-    for (var y = 0; y < h; y += 32) {
-      ctx.beginPath();
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(w, y + 0.5);
+      ctx.moveTo(0, gy + 0.5);
+      ctx.lineTo(w, gy + 0.5);
       ctx.stroke();
     }
 
-    // Top wall
-    ctx.fillStyle = '#16213e';
-    ctx.fillRect(0, 0, w, 60);
+    // Vertical plank joints (staggered)
+    ctx.strokeStyle = '#c4a07a';
+    ctx.lineWidth = 1;
+    var jointSpacing = 64;
+    for (var jy = 60; jy < h; jy += plankH) {
+      var rowOffset = (Math.floor(jy / plankH) % 2 === 0) ? 0 : jointSpacing / 2;
+      for (var jx = rowOffset; jx < w; jx += jointSpacing) {
+        ctx.beginPath();
+        ctx.moveTo(jx + 0.5, jy);
+        ctx.lineTo(jx + 0.5, jy + plankH);
+        ctx.stroke();
+      }
+    }
 
-    // Wall edge
-    ctx.fillStyle = '#0f3460';
-    ctx.fillRect(0, 56, w, 4);
+    // Cream-colored top wall
+    ctx.fillStyle = '#f5f0e8';
+    ctx.fillRect(0, 0, w, 56);
 
-    // Windows
-    var windowW = 40;
-    var windowH = 30;
+    // Subtle wall texture — very faint horizontal lines
+    ctx.strokeStyle = '#ede6db';
+    ctx.lineWidth = 1;
+    for (var wy = 4; wy < 56; wy += 8) {
+      ctx.beginPath();
+      ctx.moveTo(0, wy + 0.5);
+      ctx.lineTo(w, wy + 0.5);
+      ctx.stroke();
+    }
+
+    // Wall-floor molding (wooden trim)
+    ctx.fillStyle = '#b8956e';
+    ctx.fillRect(0, 52, w, 4);
+    ctx.fillStyle = '#c9a87c';
+    ctx.fillRect(0, 52, w, 2);
+    // Molding shadow
+    ctx.fillStyle = '#a38260';
+    ctx.fillRect(0, 56, w, 2);
+
+    // Baseboard below molding
+    ctx.fillStyle = '#e8e0d0';
+    ctx.fillRect(0, 58, w, 2);
+
+    // Windows — bright sky with curtains
+    var windowW = 44;
+    var windowH = 32;
     var gap = 120;
     var startX = (w % gap) / 2 + 30;
     for (var wx = startX; wx < w - windowW; wx += gap) {
-      // Window frame
-      ctx.fillStyle = '#1a1a3e';
+      // Window frame (light wood)
+      ctx.fillStyle = '#c9a87c';
+      ctx.fillRect(wx - 2, 8, windowW + 4, windowH + 4);
+      ctx.fillStyle = '#b8956e';
+      ctx.fillRect(wx - 1, 9, windowW + 2, windowH + 2);
+
+      // Glass — bright sky gradient
+      var skyGrd = ctx.createLinearGradient(wx, 10, wx, 10 + windowH);
+      skyGrd.addColorStop(0, '#87ceeb');
+      skyGrd.addColorStop(0.5, '#b0e0f0');
+      skyGrd.addColorStop(1, '#e0f4ff');
+      ctx.fillStyle = skyGrd;
       ctx.fillRect(wx, 10, windowW, windowH);
-      // Glass
-      var grd = ctx.createLinearGradient(wx, 10, wx, 10 + windowH);
-      grd.addColorStop(0, '#1e3a5f');
-      grd.addColorStop(1, '#0d1b2a');
-      ctx.fillStyle = grd;
-      ctx.fillRect(wx + 2, 12, windowW - 4, windowH - 4);
-      // Star/light
-      ctx.fillStyle = '#ffd700';
-      ctx.fillRect(wx + 12, 18, 2, 2);
-      ctx.fillRect(wx + 26, 22, 2, 2);
+
+      // Window cross bar (wooden)
+      ctx.fillStyle = '#c9a87c';
+      ctx.fillRect(wx + windowW / 2 - 1, 10, 2, windowH);
+      ctx.fillRect(wx, 10 + windowH / 2 - 1, windowW, 2);
+
+      // Sunlight glow effect
+      ctx.fillStyle = '#fffde0';
+      ctx.globalAlpha = 0.25;
+      ctx.fillRect(wx + 2, 12, windowW / 2 - 3, windowH / 2 - 3);
+      ctx.globalAlpha = 0.12;
+      ctx.fillRect(wx + windowW / 2 + 1, 12, windowW / 2 - 3, windowH - 4);
+      ctx.globalAlpha = 1.0;
+
+      // Small cloud pixels
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = 0.6;
+      ctx.fillRect(wx + 6, 15, 6, 2);
+      ctx.fillRect(wx + 8, 13, 4, 2);
+      ctx.fillRect(wx + windowW - 14, 20, 5, 2);
+      ctx.fillRect(wx + windowW - 12, 18, 3, 2);
+      ctx.globalAlpha = 1.0;
+
+      // Curtain — left (short)
+      ctx.fillStyle = '#f0e6d6';
+      ctx.fillRect(wx - 1, 10, 5, windowH + 1);
+      ctx.fillStyle = '#e8dcc8';
+      ctx.fillRect(wx + 1, 10, 2, windowH + 1);
+
+      // Curtain — right (short)
+      ctx.fillStyle = '#f0e6d6';
+      ctx.fillRect(wx + windowW - 4, 10, 5, windowH + 1);
+      ctx.fillStyle = '#e8dcc8';
+      ctx.fillRect(wx + windowW - 2, 10, 2, windowH + 1);
+
+      // Curtain rod
+      ctx.fillStyle = '#8b7355';
+      ctx.fillRect(wx - 4, 8, windowW + 8, 2);
+      // Rod knobs
+      ctx.fillRect(wx - 5, 7, 3, 4);
+      ctx.fillRect(wx + windowW + 2, 7, 3, 4);
     }
+
+    // Warm ambient light on floor from windows
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = '#fff9e0';
+    for (var lx = startX; lx < w - windowW; lx += gap) {
+      ctx.fillRect(lx - 10, 58, windowW + 20, 40);
+    }
+    ctx.globalAlpha = 1.0;
   }
 
   function drawDesk(ctx, x, y, isActive, agentState, now) {
-    // Chair
-    ctx.fillStyle = '#2a1a0e';
-    ctx.fillRect(x - 8, y + DESK_HEIGHT + 30, 16, 4);
-    ctx.fillRect(x + DESK_WIDTH - 8, y + DESK_HEIGHT + 30, 16, 4);
-    ctx.fillStyle = '#3d2817';
-    ctx.fillRect(x + 5, y + DESK_HEIGHT + 20, DESK_WIDTH - 10, 14);
+    // ── Chair (ergonomic office chair) ──
+    // Chair legs (star base)
+    ctx.fillStyle = '#888888';
+    ctx.fillRect(x + 14, y + DESK_HEIGHT + 34, 2, 4);
+    ctx.fillRect(x + DESK_WIDTH - 16, y + DESK_HEIGHT + 34, 2, 4);
+    ctx.fillRect(x + DESK_WIDTH / 2 - 1, y + DESK_HEIGHT + 34, 2, 4);
+    // Wheels
+    ctx.fillStyle = '#555555';
+    ctx.fillRect(x + 13, y + DESK_HEIGHT + 37, 4, 2);
+    ctx.fillRect(x + DESK_WIDTH - 17, y + DESK_HEIGHT + 37, 4, 2);
+    ctx.fillRect(x + DESK_WIDTH / 2 - 2, y + DESK_HEIGHT + 37, 4, 2);
+    // Chair stem (pneumatic lift)
+    ctx.fillStyle = '#999999';
+    ctx.fillRect(x + DESK_WIDTH / 2 - 1, y + DESK_HEIGHT + 28, 2, 7);
+    // Seat cushion
+    var chairColor = isActive ? '#4a90d9' : '#6b8cae';
+    ctx.fillStyle = chairColor;
+    ctx.fillRect(x + 8, y + DESK_HEIGHT + 22, DESK_WIDTH - 16, 8);
+    // Seat highlight
+    ctx.fillStyle = isActive ? '#5aa0e9' : '#7b9cbe';
+    ctx.fillRect(x + 8, y + DESK_HEIGHT + 22, DESK_WIDTH - 16, 2);
+    // Backrest
+    ctx.fillStyle = chairColor;
+    ctx.fillRect(x + 12, y + DESK_HEIGHT + 14, DESK_WIDTH - 24, 9);
+    // Backrest highlight
+    ctx.fillStyle = isActive ? '#5aa0e9' : '#7b9cbe';
+    ctx.fillRect(x + 12, y + DESK_HEIGHT + 14, DESK_WIDTH - 24, 2);
+    // Armrests
+    ctx.fillStyle = '#888888';
+    ctx.fillRect(x + 6, y + DESK_HEIGHT + 20, 4, 3);
+    ctx.fillRect(x + DESK_WIDTH - 10, y + DESK_HEIGHT + 20, 4, 3);
 
-    // Desk surface
-    ctx.fillStyle = '#533e2d';
+    // ── Desk ──
+    // Desk legs (tapered modern style)
+    ctx.fillStyle = '#a38260';
+    ctx.fillRect(x + 4, y + DESK_HEIGHT, 3, 10);
+    ctx.fillRect(x + DESK_WIDTH - 7, y + DESK_HEIGHT, 3, 10);
+    // Leg feet
+    ctx.fillStyle = '#8b7355';
+    ctx.fillRect(x + 3, y + DESK_HEIGHT + 9, 5, 2);
+    ctx.fillRect(x + DESK_WIDTH - 8, y + DESK_HEIGHT + 9, 5, 2);
+
+    // Desk surface (warm light wood)
+    ctx.fillStyle = '#c9a87c';
     ctx.fillRect(x, y, DESK_WIDTH, DESK_HEIGHT);
-    // Desk edge highlight
-    ctx.fillStyle = '#6b4e37';
+    // Desktop wood grain hint
+    ctx.fillStyle = '#c0a074';
+    ctx.fillRect(x + 8, y + 6, 20, 1);
+    ctx.fillRect(x + 35, y + 12, 18, 1);
+    ctx.fillRect(x + 12, y + 20, 25, 1);
+    // Desk front edge (rounded feel)
+    ctx.fillStyle = '#d4b48f';
     ctx.fillRect(x, y, DESK_WIDTH, 3);
-    // Desk legs
-    ctx.fillStyle = '#3d2817';
-    ctx.fillRect(x + 2, y + DESK_HEIGHT, 4, 8);
-    ctx.fillRect(x + DESK_WIDTH - 6, y + DESK_HEIGHT, 4, 8);
+    // Desk bottom edge shadow
+    ctx.fillStyle = '#b8956e';
+    ctx.fillRect(x, y + DESK_HEIGHT - 2, DESK_WIDTH, 2);
 
-    // Monitor stand
+    // ── Monitor ──
     var monX = x + (DESK_WIDTH - MONITOR_W) / 2;
-    var monY = y - MONITOR_H - 4;
-    ctx.fillStyle = '#1f1f2e';
-    ctx.fillRect(monX + MONITOR_W / 2 - 2, y - 4, 4, 4);
+    var monY = y - MONITOR_H - 6;
+    // Monitor stand arm
+    ctx.fillStyle = '#555555';
+    ctx.fillRect(monX + MONITOR_W / 2 - 1, y - 6, 2, 6);
+    // Monitor stand base
+    ctx.fillStyle = '#666666';
+    ctx.fillRect(monX + MONITOR_W / 2 - 5, y - 2, 10, 2);
+    ctx.fillStyle = '#777777';
+    ctx.fillRect(monX + MONITOR_W / 2 - 4, y - 2, 8, 1);
 
-    // Monitor frame
-    ctx.fillStyle = '#1a1a2a';
+    // Monitor bezel (thin, dark)
+    ctx.fillStyle = '#333333';
     ctx.fillRect(monX, monY, MONITOR_W, MONITOR_H);
+    // Inner bezel highlight
+    ctx.fillStyle = '#444444';
+    ctx.fillRect(monX, monY, MONITOR_W, 1);
 
     // Monitor screen glow (active only)
     if (isActive) {
       var glowColors = { typing: '#22c55e', reading: '#3b82f6', waiting: '#eab308' };
       ctx.fillStyle = glowColors[agentState] || '#22c55e';
-      ctx.globalAlpha = 0.12;
+      ctx.globalAlpha = 0.10;
       ctx.fillRect(monX - 3, monY - 3, MONITOR_W + 6, MONITOR_H + 6);
       ctx.globalAlpha = 1.0;
     }
@@ -436,15 +625,28 @@ var OfficeRenderer = (function () {
       ctx.fillRect(screenX, screenY, screenW, screenH);
     }
 
-    // Keyboard on desk (if active)
-    if (isActive) {
-      ctx.fillStyle = '#374151';
-      ctx.fillRect(x + DESK_WIDTH / 2 - 12, y + 10, 24, 8);
-      ctx.fillStyle = '#4b5563';
-      for (var ki = 0; ki < 5; ki++) {
-        ctx.fillRect(x + DESK_WIDTH / 2 - 10 + ki * 5, y + 12, 3, 2);
-      }
+    // ── Keyboard (always visible for equipped desks) ──
+    // Keyboard body
+    ctx.fillStyle = '#e5e7eb';
+    ctx.fillRect(x + DESK_WIDTH / 2 - 13, y + 10, 26, 9);
+    // Keyboard border
+    ctx.fillStyle = '#d1d5db';
+    ctx.fillRect(x + DESK_WIDTH / 2 - 13, y + 10, 26, 1);
+    ctx.fillRect(x + DESK_WIDTH / 2 - 13, y + 18, 26, 1);
+    // Key rows
+    ctx.fillStyle = '#f9fafb';
+    for (var ki = 0; ki < 6; ki++) {
+      ctx.fillRect(x + DESK_WIDTH / 2 - 11 + ki * 4, y + 12, 3, 2);
     }
+    for (var ki2 = 0; ki2 < 5; ki2++) {
+      ctx.fillRect(x + DESK_WIDTH / 2 - 9 + ki2 * 4, y + 15, 3, 2);
+    }
+
+    // ── Mouse (small, right side of keyboard) ──
+    ctx.fillStyle = '#e5e7eb';
+    ctx.fillRect(x + DESK_WIDTH / 2 + 16, y + 12, 5, 6);
+    ctx.fillStyle = '#d1d5db';
+    ctx.fillRect(x + DESK_WIDTH / 2 + 17, y + 12, 1, 3);
   }
 
   function drawLabel(ctx, x, y, text, color) {
