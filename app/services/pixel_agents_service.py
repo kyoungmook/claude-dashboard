@@ -12,6 +12,7 @@ from app.services.cache import ttl_cache
 
 ACTIVE_THRESHOLD_SECONDS = 300
 _SUBAGENT_ACTIVE_THRESHOLD_SECONDS = 60
+_PARENT_SCAN_BYTES = 200_000
 
 TEAMS_DIR = CLAUDE_DIR / "teams"
 
@@ -245,6 +246,80 @@ def _resolve_team_name(
     return ""
 
 
+def _extract_subagent_roles(parent_jsonl: Path) -> dict[str, dict[str, str]]:
+    """Scan parent JSONL to build {agentId: {subagent_type, name, description}} mapping.
+
+    Reads the last _PARENT_SCAN_BYTES of the parent file to find Task tool_use
+    blocks and progress records that link tool_use_ids to agent IDs.
+    """
+    try:
+        file_size = parent_jsonl.stat().st_size
+    except OSError:
+        return {}
+
+    read_size = min(file_size, _PARENT_SCAN_BYTES)
+    offset = file_size - read_size
+
+    try:
+        with open(parent_jsonl, "rb") as f:
+            f.seek(offset)
+            data = f.read(read_size)
+    except OSError:
+        return {}
+
+    text = data.decode("utf-8", errors="replace")
+    lines = text.split("\n")
+    if offset > 0 and lines:
+        lines = lines[1:]
+
+    task_info: dict[str, dict[str, str]] = {}
+    tool_to_agent: dict[str, str] = {}
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+        except (json.JSONDecodeError, ValueError):
+            continue
+
+        if not isinstance(record, dict):
+            continue
+
+        record_type = record.get("type", "")
+
+        if record_type == "assistant":
+            content = record.get("message", {}).get("content", [])
+            if isinstance(content, list):
+                for block in content:
+                    if (
+                        isinstance(block, dict)
+                        and block.get("type") == "tool_use"
+                        and block.get("name") == "Task"
+                    ):
+                        inp = block.get("input", {})
+                        task_info[block.get("id", "")] = {
+                            "subagent_type": inp.get("subagent_type", ""),
+                            "name": inp.get("name", ""),
+                            "description": inp.get("description", ""),
+                        }
+
+        elif record_type == "progress":
+            ptid = record.get("parentToolUseID", "")
+            rec_data = record.get("data", {})
+            if isinstance(rec_data, dict) and "agentId" in rec_data:
+                tool_to_agent[ptid] = rec_data["agentId"]
+
+    result: dict[str, dict[str, str]] = {}
+    for tool_id, info in task_info.items():
+        agent_id = tool_to_agent.get(tool_id, "")
+        if agent_id:
+            result[agent_id] = info
+
+    return result
+
+
 def _get_active_agents_impl(
     projects_dir: Path,
     teams_dir: Path | None = None,
@@ -259,6 +334,17 @@ def _get_active_agents_impl(
     # Track which active sessions are lead sessions
     active_session_ids = {f.stem for f, _, _ in active_files}
 
+    # Extract subagent roles from parent JSONL files
+    subagent_roles: dict[str, dict[str, str]] = {}
+    parent_jsonls: set[str] = set()
+    for file_path, _, _ in active_files:
+        if file_path.parent.name == "subagents":
+            parent_jsonl = file_path.parent.parent.with_suffix(".jsonl")
+            parent_key = str(parent_jsonl)
+            if parent_key not in parent_jsonls and parent_jsonl.exists():
+                parent_jsonls.add(parent_key)
+                subagent_roles.update(_extract_subagent_roles(parent_jsonl))
+
     # Build agent data with team names and roles
     raw_agents: list[tuple[Path, str, float, str, str, bool]] = []
     for file_path, project_name, mtime in active_files:
@@ -268,7 +354,14 @@ def _get_active_agents_impl(
         if is_lead:
             role = "team-lead"
         elif file_path.parent.name == "subagents":
-            role = "teammate"
+            agent_hash = file_path.stem.removeprefix("agent-")
+            agent_info = subagent_roles.get(agent_hash, {})
+            role = (
+                agent_info.get("name", "")
+                or agent_info.get("subagent_type", "")
+                or agent_info.get("description", "")[:20]
+                or "sub-agent"
+            )
         raw_agents.append((file_path, project_name, mtime, team_name, role, is_lead))
 
     # For active teams, add virtual agents for team members
@@ -276,10 +369,10 @@ def _get_active_agents_impl(
     for team in active_teams:
         if team.lead_session_id not in active_session_ids:
             continue
-        # Count existing team subagents (real JSONL files)
+        # Count real subagent JSONL files for this team (non-lead with any role)
         existing_team_subagents = sum(
-            1 for _, _, _, tn, role, _ in raw_agents
-            if tn == team.team_name and role == "teammate"
+            1 for fp, _, _, tn, _, is_lead in raw_agents
+            if tn == team.team_name and not is_lead and fp.parent.name == "subagents"
         )
         if existing_team_subagents > 0:
             continue
@@ -306,8 +399,18 @@ def _get_active_agents_impl(
                 False,
             ))
 
-    # Sort: team members first (grouped by team name), then solo agents
-    raw_agents.sort(key=lambda x: (x[3] == "", x[3], x[4] != "team-lead", x[4]))
+    # Sort: team members first, then sub-agents grouped by parent, then solo
+    # Key: (has_no_group, group_name, is_not_lead, role)
+    def _sort_key(entry: tuple[Path, str, float, str, str, bool]) -> tuple[int, str, int, str]:
+        file_path, _, _, team_name, role, is_lead = entry
+        if team_name:
+            return (0, team_name, 0 if is_lead else 1, role)
+        if role and file_path.parent.name == "subagents":
+            parent_id = file_path.parent.parent.name
+            return (1, parent_id, 0, role)
+        return (2, "", 0, file_path.stem)
+
+    raw_agents.sort(key=_sort_key)
 
     agents: list[PixelAgentState] = []
     seen_virtual: set[str] = set()

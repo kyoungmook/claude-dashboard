@@ -1183,25 +1183,32 @@ PixelOffice.prototype._updateMovement = function (now) {
 };
 
 PixelOffice.prototype._drawTeamPartitions = function (ctx, canvasW, canvasH) {
-  // Group agents by team_name
-  var teams = {};
+  // Group agents by team_name or by parent session (for sub-agents)
+  var groups = {};
   this.agents.forEach(function (agent) {
-    if (!agent.teamName) return;
-    if (!teams[agent.teamName]) {
-      teams[agent.teamName] = [];
+    var groupKey = agent.teamName;
+    var groupLabel = agent.teamName;
+    // Sub-agents without team_name: group by parent session
+    if (!groupKey && agent.role && agent.isSubagent) {
+      groupKey = '_sub_' + agent.projectName;
+      groupLabel = agent.projectName + ' (sub-agents)';
     }
-    teams[agent.teamName].push(agent.deskIndex);
+    if (!groupKey) return;
+    if (!groups[groupKey]) {
+      groups[groupKey] = { label: groupLabel, indices: [] };
+    }
+    groups[groupKey].indices.push(agent.deskIndex);
   });
 
-  var teamNames = Object.keys(teams);
-  if (teamNames.length === 0) return;
+  var groupKeys = Object.keys(groups);
+  if (groupKeys.length === 0) return;
 
-  for (var i = 0; i < teamNames.length; i++) {
-    var teamName = teamNames[i];
-    var indices = teams[teamName];
+  for (var i = 0; i < groupKeys.length; i++) {
+    var group = groups[groupKeys[i]];
+    var indices = group.indices;
     indices.sort(function (a, b) { return a - b; });
 
-    // Calculate bounding box around all team desks
+    // Calculate bounding box around all group desks
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (var j = 0; j < indices.length; j++) {
       var pos = OfficeRenderer.getDeskPosition(indices[j], canvasW);
@@ -1220,7 +1227,7 @@ PixelOffice.prototype._drawTeamPartitions = function (ctx, canvasW, canvasH) {
     var partW = maxX - minX + pad * 2;
     var partH = maxY - minY + OfficeRenderer.MONITOR_H + 10 + pad;
 
-    OfficeRenderer.drawPartition(ctx, partX, partY, partW, partH, teamName);
+    OfficeRenderer.drawPartition(ctx, partX, partY, partW, partH, group.label);
   }
 };
 
