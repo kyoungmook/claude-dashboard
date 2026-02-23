@@ -10,6 +10,7 @@ from app.models.schemas import PixelAgentState
 from app.services.cache import ttl_cache
 
 ACTIVE_THRESHOLD_SECONDS = 300
+_SUBAGENT_ACTIVE_THRESHOLD_SECONDS = 60
 
 TEAMS_DIR = CLAUDE_DIR / "teams"
 
@@ -92,13 +93,15 @@ def _find_active_jsonl_files(
             except OSError:
                 continue
         # Also scan subagent directories ({session_id}/subagents/*.jsonl)
+        # Use shorter threshold for subagents since they terminate quickly
         for subagents_dir in project_dir.glob("*/subagents"):
             if not subagents_dir.is_dir():
                 continue
             for jsonl_file in subagents_dir.glob("*.jsonl"):
                 try:
                     stat = jsonl_file.stat()
-                    if now - stat.st_mtime < ACTIVE_THRESHOLD_SECONDS:
+                    age = now - stat.st_mtime
+                    if age < _SUBAGENT_ACTIVE_THRESHOLD_SECONDS:
                         active.append((jsonl_file, project_name, stat.st_mtime))
                 except OSError:
                     continue

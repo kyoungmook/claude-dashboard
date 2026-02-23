@@ -177,6 +177,10 @@ def find_session_file(session_id: str) -> Path | None:
         for jsonl_file in project_dir.glob("*.jsonl"):
             if session_id in jsonl_file.stem:
                 return jsonl_file
+        # Also search in subagent directories
+        for jsonl_file in project_dir.glob("*/subagents/*.jsonl"):
+            if session_id in jsonl_file.stem:
+                return jsonl_file
     return None
 
 
